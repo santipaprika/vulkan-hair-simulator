@@ -1,3 +1,9 @@
+/*
+*   Modified version of the framework provided by Brendan Galea in his Vulkan
+*   tutorial series (https://github.com/blurrypiano/littleVulkanEngine) 
+*   Copyright (c) 2020 Brendan Galea
+*/
+
 #pragma once
 
 #include "Device.hpp"
@@ -11,44 +17,44 @@
 
 namespace vkr {
 class Renderer {
- public:
-  Renderer(Window &window, Device &device);
-  ~Renderer();
+   public:
+    Renderer(Window &window, Device &device);
+    ~Renderer();
 
-  Renderer(const Renderer &) = delete;
-  Renderer &operator=(const Renderer &) = delete;
+    Renderer(const Renderer &) = delete;
+    Renderer &operator=(const Renderer &) = delete;
 
-  VkRenderPass getSwapChainRenderPass() const { return SwapChain->getRenderPass(); }
-  float getAspectRatio() const { return SwapChain->extentAspectRatio(); }
-  bool isFrameInProgress() const { return isFrameStarted; }
+    VkRenderPass getSwapChainRenderPass() const { return swapChain->getRenderPass(); }
+    float getAspectRatio() const { return swapChain->extentAspectRatio(); }
+    bool isFrameInProgress() const { return isFrameStarted; }
 
-  VkCommandBuffer getCurrentCommandBuffer() const {
-    assert(isFrameStarted && "Cannot get command buffer when frame not in progress");
-    return commandBuffers[currentFrameIndex];
-  }
+    VkCommandBuffer getCurrentCommandBuffer() const {
+        assert(isFrameStarted && "Cannot get command buffer when frame not in progress");
+        return commandBuffers[currentFrameIndex];
+    }
 
-  int getFrameIndex() const {
-    assert(isFrameStarted && "Cannot get frame index when frame not in progress");
-    return currentFrameIndex;
-  }
+    int getFrameIndex() const {
+        assert(isFrameStarted && "Cannot get frame index when frame not in progress");
+        return currentFrameIndex;
+    }
 
-  VkCommandBuffer beginFrame();
-  void endFrame();
-  void beginSwapChainRenderPass(VkCommandBuffer commandBuffer);
-  void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
+    VkCommandBuffer beginFrame();
+    void endFrame();
+    void beginSwapChainRenderPass(VkCommandBuffer commandBuffer);
+    void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
 
- private:
-  void createCommandBuffers();
-  void freeCommandBuffers();
-  void recreateSwapChain();
+   private:
+    void createCommandBuffers();
+    void freeCommandBuffers();
+    void recreateSwapChain();
 
-  Window &Window;
-  Device &Device;
-  std::unique_ptr<SwapChain> SwapChain;
-  std::vector<VkCommandBuffer> commandBuffers;
+    Window &window;
+    Device &device;
+    std::unique_ptr<SwapChain> swapChain;
+    std::vector<VkCommandBuffer> commandBuffers;
 
-  uint32_t currentImageIndex;
-  int currentFrameIndex{0};
-  bool isFrameStarted{false};
+    uint32_t currentImageIndex;
+    int currentFrameIndex{0};
+    bool isFrameStarted{false};
 };
 }  // namespace vkr

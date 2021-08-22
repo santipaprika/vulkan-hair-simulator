@@ -1,8 +1,14 @@
+/*
+*   Modified version of the framework provided by Brendan Galea in his Vulkan
+*   tutorial series (https://github.com/blurrypiano/littleVulkanEngine) 
+*   Copyright (c) 2020 Brendan Galea
+*/
+
 #include "Application.hpp"
 
-#include "InputController.hpp"
 #include "Camera.hpp"
-#include "RenderSysten.hpp"
+#include "InputController.hpp"
+#include "RenderSystem.hpp"
 
 // libs
 #define GLM_FORCE_RADIANS
@@ -23,55 +29,55 @@ Application::Application() { loadEntities(); }
 Application::~Application() {}
 
 void Application::run() {
-  RenderSystem RenderSystem{Device, Renderer.getSwapChainRenderPass()};
-  Camera camera{};
+    RenderSystem RenderSystem{Device, Renderer.getSwapChainRenderPass()};
+    Camera camera{};
 
-  auto viewerObject = Entity::createEntity();
-  InputController cameraController{};
+    auto viewerObject = Entity::createEntity();
+    InputController cameraController{};
 
-  auto currentTime = std::chrono::high_resolution_clock::now();
-  while (!Window.shouldClose()) {
-    glfwPollEvents();
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    while (!Window.shouldClose()) {
+        glfwPollEvents();
 
-    auto newTime = std::chrono::high_resolution_clock::now();
-    float frameTime =
-        std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
-    currentTime = newTime;
+        auto newTime = std::chrono::high_resolution_clock::now();
+        float frameTime =
+            std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
+        currentTime = newTime;
 
-    cameraController.moveInPlaneXZ(Window.getGLFWwindow(), frameTime, viewerObject);
-    camera.setViewYXZ(viewerObject.transform.translation, viewerObject.transform.rotation);
+        cameraController.moveInPlaneXZ(Window.getGLFWwindow(), frameTime, viewerObject);
+        camera.setViewYXZ(viewerObject.transform.translation, viewerObject.transform.rotation);
 
-    float aspect = Renderer.getAspectRatio();
-    camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 10.f);
+        float aspect = Renderer.getAspectRatio();
+        camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 10.f);
 
-    if (auto commandBuffer = Renderer.beginFrame()) {
-      Renderer.beginSwapChainRenderPass(commandBuffer);
+        if (auto commandBuffer = Renderer.beginFrame()) {
+            Renderer.beginSwapChainRenderPass(commandBuffer);
 
-      RenderSystem.renderEntities(commandBuffer, entities, camera);
+            RenderSystem.renderEntities(commandBuffer, entities, camera);
 
-      Renderer.endSwapChainRenderPass(commandBuffer);
-      Renderer.endFrame();
+            Renderer.endSwapChainRenderPass(commandBuffer);
+            Renderer.endFrame();
+        }
     }
-  }
 
-  vkDeviceWaitIdle(Device.device());
+    vkDeviceWaitIdle(Device.device());
 }
 
 void Application::loadEntities() {
-  std::shared_ptr<Mesh> Mesh =
-      Mesh::createModelFromFile(Device, "models/flat_vase.obj");
-  auto flatVase = Entity::createEntity();
-  flatVase.model = Mesh;
-  flatVase.transform.translation = {-.5f, .5f, 2.5f};
-  flatVase.transform.scale = {3.f, 1.5f, 3.f};
-  entities.push_back(std::move(flatVase));
+    std::shared_ptr<Mesh> Mesh =
+        Mesh::createModelFromFile(Device, (root_path + "/models/flat_vase.obj").c_str());
+    auto flatVase = Entity::createEntity();
+    flatVase.model = Mesh;
+    flatVase.transform.translation = {-.5f, .5f, 2.5f};
+    flatVase.transform.scale = {3.f, 1.5f, 3.f};
+    entities.push_back(std::move(flatVase));
 
-  Mesh = Mesh::createModelFromFile(Device, "models/smooth_vase.obj");
-  auto smoothVase = Entity::createEntity();
-  smoothVase.model = Mesh;
-  smoothVase.transform.translation = {.5f, .5f, 2.5f};
-  smoothVase.transform.scale = {3.f, 1.5f, 3.f};
-  entities.push_back(std::move(smoothVase));
+    Mesh = Mesh::createModelFromFile(Device, (root_path + "/models/smooth_vase.obj").c_str());
+    auto smoothVase = Entity::createEntity();
+    smoothVase.model = Mesh;
+    smoothVase.transform.translation = {.5f, .5f, 2.5f};
+    smoothVase.transform.scale = {3.f, 1.5f, 3.f};
+    entities.push_back(std::move(smoothVase));
 }
 
 }  // namespace vkr

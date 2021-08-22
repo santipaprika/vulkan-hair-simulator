@@ -1,3 +1,9 @@
+/*
+*   Modified version of the framework provided by Brendan Galea in his Vulkan
+*   tutorial series (https://github.com/blurrypiano/littleVulkanEngine) 
+*   Copyright (c) 2020 Brendan Galea
+*/
+
 #pragma once
 
 #include "Device.hpp"
@@ -11,25 +17,25 @@
 
 namespace vkr {
 class Application {
- public:
-  static constexpr int WIDTH = 800;
-  static constexpr int HEIGHT = 600;
+   public:
+    static constexpr int WIDTH = 800;
+    static constexpr int HEIGHT = 600;
 
-  Application();
-  ~Application();
+    Application();
+    ~Application();
 
-  Application(const Application &) = delete;
-  Application &operator=(const Application &) = delete;
+    Application(const Application &) = delete;
+    Application &operator=(const Application &) = delete;
 
-  void run();
+    void run();
 
- private:
-  void loadEntities();
+   private:
+    void loadEntities();
 
-  Window Window{WIDTH, HEIGHT, "Vulkan Tutorial"};
-  Device Device{Window};
-  Renderer Renderer{Window, Device};
+    Window Window{WIDTH, HEIGHT, "Vulkan Tutorial"};
+    Device Device{Window};
+    Renderer Renderer{Window, Device};
 
-  std::vector<Entity> entities;
+    std::vector<Entity> entities;
 };
 }  // namespace vkr
