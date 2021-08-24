@@ -11,4 +11,4 @@ file(GLOB project_src CONFIGURE_DEPENDS "*.h" "*.cpp")
 
 add_executable( ${PROJECT_NAME} ${project_src} )
 
-target_link_libraries( ${PROJECT_NAME} Vulkan::Vulkan glfw glm tinyobjloader imgui )
+target_link_libraries( ${PROJECT_NAME} Vulkan::Vulkan glfw glm tinyobjloader stb_image imgui )
