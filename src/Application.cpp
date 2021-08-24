@@ -1,6 +1,6 @@
 /*
 *   Modified version of the framework provided by Brendan Galea in his Vulkan
-*   tutorial series (https://github.com/blurrypiano/littleVulkanEngine) 
+*   tutorial series (https://github.com/blurrypiano/littleVulkanEngine)
 *   Copyright (c) 2020 Brendan Galea
 */
 
@@ -13,6 +13,10 @@
 // libs
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
@@ -29,55 +33,142 @@ Application::Application() { loadEntities(); }
 Application::~Application() {}
 
 void Application::run() {
-    RenderSystem RenderSystem{Device, Renderer.getSwapChainRenderPass()};
+    RenderSystem RenderSystem{device, renderer.getSwapChainRenderPass()};
     Camera camera{};
 
     auto viewerObject = Entity::createEntity();
     InputController cameraController{};
 
+    // setupImGuiContext();
+
     auto currentTime = std::chrono::high_resolution_clock::now();
-    while (!Window.shouldClose()) {
+    while (!window.shouldClose()) {
         glfwPollEvents();
+
+        // ImGui_ImplVulkan_NewFrame();
+        // ImGui_ImplGlfw_NewFrame();
+        // ImGui::NewFrame();
+        // ImGui::ShowDemoWindow();
 
         auto newTime = std::chrono::high_resolution_clock::now();
         float frameTime =
             std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
         currentTime = newTime;
 
-        cameraController.moveInPlaneXZ(Window.getGLFWwindow(), frameTime, viewerObject);
+        cameraController.moveInPlaneXZ(window.getGLFWwindow(), frameTime, viewerObject);
         camera.setViewYXZ(viewerObject.transform.translation, viewerObject.transform.rotation);
 
-        float aspect = Renderer.getAspectRatio();
+        float aspect = renderer.getAspectRatio();
         camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 10.f);
 
-        if (auto commandBuffer = Renderer.beginFrame()) {
-            Renderer.beginSwapChainRenderPass(commandBuffer);
+        // Rendering
+        // ImGui::Render();
+        // ImDrawData* draw_data = ImGui::GetDrawData();
+
+        if (auto commandBuffer = renderer.beginFrame()) {
+            renderer.beginSwapChainRenderPass(commandBuffer);
 
             RenderSystem.renderEntities(commandBuffer, entities, camera);
 
-            Renderer.endSwapChainRenderPass(commandBuffer);
-            Renderer.endFrame();
+            renderer.endSwapChainRenderPass(commandBuffer);
+            renderer.endFrame();
         }
     }
 
-    vkDeviceWaitIdle(Device.device());
+    vkDeviceWaitIdle(device.device());
+
+    // ImGui_ImplVulkan_Shutdown();
+    // ImGui_ImplGlfw_Shutdown();
+    // ImGui::DestroyContext();
 }
 
 void Application::loadEntities() {
     std::shared_ptr<Mesh> Mesh =
-        Mesh::createModelFromFile(Device, (root_path + "/models/flat_vase.obj").c_str());
+        Mesh::createModelFromFile(device, (root_path + "/models/flat_vase.obj").c_str());
     auto flatVase = Entity::createEntity();
-    flatVase.model = Mesh;
+    flatVase.mesh = Mesh;
     flatVase.transform.translation = {-.5f, .5f, 2.5f};
     flatVase.transform.scale = {3.f, 1.5f, 3.f};
     entities.push_back(std::move(flatVase));
 
-    Mesh = Mesh::createModelFromFile(Device, (root_path + "/models/smooth_vase.obj").c_str());
+    Mesh = Mesh::createModelFromFile(device, (root_path + "/models/smooth_vase.obj").c_str());
     auto smoothVase = Entity::createEntity();
-    smoothVase.model = Mesh;
+    smoothVase.mesh = Mesh;
     smoothVase.transform.translation = {.5f, .5f, 2.5f};
     smoothVase.transform.scale = {3.f, 1.5f, 3.f};
     entities.push_back(std::move(smoothVase));
+}
+
+static void checkVkResult(VkResult err) {
+    if (err == VK_SUCCESS)
+        return;
+    fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
+    if (err < 0)
+        abort();
+}
+
+void Application::setupImGuiContext() {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
+
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplGlfw_InitForVulkan(window.getGLFWwindow(), true);
+    ImGui_ImplVulkan_InitInfo initInfo = {};
+    initInfo.Instance = device.instance();
+    initInfo.PhysicalDevice = device.physicalDevice();
+    initInfo.Device = device.device();
+    initInfo.QueueFamily = device.queueFamilyIndices().graphicsFamily;
+    initInfo.Queue = device.graphicsQueue();
+    initInfo.PipelineCache = VK_NULL_HANDLE;
+    // initInfo.DescriptorPool = device.getDescriptorPool();
+    initInfo.Allocator = VK_NULL_HANDLE;
+    initInfo.MinImageCount = device.getSwapChainSupport().capabilities.minImageCount + 1;
+    initInfo.ImageCount = renderer.getSwapChainImageCount();
+    initInfo.CheckVkResultFn = checkVkResult;
+    ImGui_ImplVulkan_Init(&initInfo, renderer.getSwapChainRenderPass());
+
+    // Upload Fonts
+    {
+        // if (renderer.acquireNextSwapChainImage()) {
+        // Use any command queue
+        VkCommandPool commandPool = device.getCommandPool();
+        VkCommandBuffer commandBuffer = renderer.getCurrentCommandBuffer(false);
+
+        if (vkResetCommandPool(device.device(), commandPool, 0) != VK_SUCCESS) {
+            throw std::runtime_error("failed to reset command pool!");
+        }
+
+        VkCommandBufferBeginInfo beginInfo = {};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+            throw std::runtime_error("failed to begin command buffer for loading ImGui font!");
+        }
+
+        ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+
+        VkSubmitInfo endInfo = {};
+        endInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        endInfo.commandBufferCount = 1;
+        endInfo.pCommandBuffers = &commandBuffer;
+        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to end command buffer for loading ImGui font!");
+        }
+
+        if (vkQueueSubmit(device.graphicsQueue(), 1, &endInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+            throw std::runtime_error("failed to submit queue for loading ImGui font!");
+        }
+
+        if (vkDeviceWaitIdle(device.device()) != VK_SUCCESS) {
+            throw std::runtime_error("failed to wait for idle device when loading ImGui font!");
+        }
+
+        ImGui_ImplVulkan_DestroyFontUploadObjects();
+        // }
+    }
 }
 
 }  // namespace vkr

@@ -9,7 +9,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/build/release")
 
 file(GLOB project_src CONFIGURE_DEPENDS "*.h" "*.cpp")
 
-# include_directories(src PUBLIC "${PROJECT_SOURCE_DIR}")
 add_executable( ${PROJECT_NAME} ${project_src} )
 
-target_link_libraries( ${PROJECT_NAME} Vulkan::Vulkan glfw glm tinyobjloader )
+target_link_libraries( ${PROJECT_NAME} Vulkan::Vulkan glfw glm tinyobjloader imgui )

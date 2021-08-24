@@ -31,10 +31,11 @@ class Application {
 
    private:
     void loadEntities();
+    void setupImGuiContext();
 
-    Window Window{WIDTH, HEIGHT, "Vulkan Tutorial"};
-    Device Device{Window};
-    Renderer Renderer{Window, Device};
+    Window window{WIDTH, HEIGHT, "Vulkan Tutorial"};
+    Device device{window};
+    Renderer renderer{window, device};
 
     std::vector<Entity> entities;
 };

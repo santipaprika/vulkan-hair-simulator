@@ -26,10 +26,13 @@ class Renderer {
 
     VkRenderPass getSwapChainRenderPass() const { return swapChain->getRenderPass(); }
     float getAspectRatio() const { return swapChain->extentAspectRatio(); }
+    uint32_t getSwapChainImageCount() const { return static_cast<uint32_t>(swapChain->imageCount()); }
     bool isFrameInProgress() const { return isFrameStarted; }
 
-    VkCommandBuffer getCurrentCommandBuffer() const {
-        assert(isFrameStarted && "Cannot get command buffer when frame not in progress");
+    VkCommandBuffer getCurrentCommandBuffer(bool requireSync = true) const {
+        if (requireSync)
+            assert(isFrameStarted && "Cannot get command buffer when frame not in progress");
+            
         return commandBuffers[currentFrameIndex];
     }
 
@@ -42,6 +45,7 @@ class Renderer {
     void endFrame();
     void beginSwapChainRenderPass(VkCommandBuffer commandBuffer);
     void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
+    bool acquireNextSwapChainImage();
 
    private:
     void createCommandBuffers();

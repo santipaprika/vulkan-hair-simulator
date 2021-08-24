@@ -15,6 +15,7 @@ namespace vkr {
 
 class Window {
    public:
+    // Create window
     Window(int w, int h, std::string name);
     ~Window();
 
@@ -31,6 +32,8 @@ class Window {
 
    private:
     static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
+    
+    // Initialize window
     void initWindow();
 
     int width;

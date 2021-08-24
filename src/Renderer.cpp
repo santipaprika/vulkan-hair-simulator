@@ -68,14 +68,8 @@ void Renderer::freeCommandBuffers() {
 VkCommandBuffer Renderer::beginFrame() {
     assert(!isFrameStarted && "Can't call beginFrame while already in progress");
 
-    auto result = swapChain->acquireNextImage(&currentImageIndex);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        recreateSwapChain();
+    if (!acquireNextSwapChainImage()) {
         return nullptr;
-    }
-
-    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-        throw std::runtime_error("failed to acquire swap chain image!");
     }
 
     isFrameStarted = true;
@@ -150,6 +144,21 @@ void Renderer::endSwapChainRenderPass(VkCommandBuffer commandBuffer) {
         commandBuffer == getCurrentCommandBuffer() &&
         "Can't end render pass on command buffer from a different frame");
     vkCmdEndRenderPass(commandBuffer);
+}
+
+bool Renderer::acquireNextSwapChainImage() 
+{
+    auto result = swapChain->acquireNextImage(&currentImageIndex);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        recreateSwapChain();
+        return false;
+    }
+
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
+
+    return true;
 }
 
 }  // namespace vkr

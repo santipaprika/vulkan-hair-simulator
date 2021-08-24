@@ -35,10 +35,23 @@ class RenderSystem {
    private:
     void createPipelineLayout();
     void createPipeline(VkRenderPass renderPass);
+    void createDescriptorSetLayout();
+    void createUniformBuffers();
+    void createDescriptorSets();
+    void createDescriptorPool();
 
     Device &device;
 
     std::unique_ptr<Pipeline> pipeline;
+
+    VkDescriptorSetLayout descriptorSetLayout;
     VkPipelineLayout pipelineLayout;
+
+    std::vector<VkBuffer> uniformBuffers;
+    std::vector<VkDeviceMemory> uniformBuffersMemory;
+
+    VkDescriptorPool descriptorPool;
+    std::vector<VkDescriptorSet> descriptorSets;
+
 };
 }  // namespace vkr
