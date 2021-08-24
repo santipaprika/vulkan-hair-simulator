@@ -146,8 +146,7 @@ void Renderer::endSwapChainRenderPass(VkCommandBuffer commandBuffer) {
     vkCmdEndRenderPass(commandBuffer);
 }
 
-bool Renderer::acquireNextSwapChainImage() 
-{
+bool Renderer::acquireNextSwapChainImage() {
     auto result = swapChain->acquireNextImage(&currentImageIndex);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         recreateSwapChain();

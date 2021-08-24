@@ -33,7 +33,7 @@ Application::Application() { loadEntities(); }
 Application::~Application() {}
 
 void Application::run() {
-    RenderSystem RenderSystem{device, renderer.getSwapChainRenderPass()};
+    RenderSystem renderSystem{device, renderer.getSwapChainRenderPass(), entities[0].texture};
     Camera camera{};
 
     auto viewerObject = Entity::createEntity();
@@ -68,7 +68,7 @@ void Application::run() {
         if (auto commandBuffer = renderer.beginFrame()) {
             renderer.beginSwapChainRenderPass(commandBuffer);
 
-            RenderSystem.renderEntities(commandBuffer, entities, camera);
+            renderSystem.renderEntities(commandBuffer, entities, camera);
 
             renderer.endSwapChainRenderPass(commandBuffer);
             renderer.endFrame();
@@ -83,17 +83,21 @@ void Application::run() {
 }
 
 void Application::loadEntities() {
-    std::shared_ptr<Mesh> Mesh =
+    std::shared_ptr<Texture> texture = Texture::createTextureFromFile(device, (root_path + "/textures/test.jpg"));
+
+    std::shared_ptr<Mesh> mesh =
         Mesh::createModelFromFile(device, (root_path + "/models/flat_vase.obj").c_str());
     auto flatVase = Entity::createEntity();
-    flatVase.mesh = Mesh;
+    flatVase.mesh = mesh;
+    flatVase.texture = texture;
     flatVase.transform.translation = {-.5f, .5f, 2.5f};
     flatVase.transform.scale = {3.f, 1.5f, 3.f};
     entities.push_back(std::move(flatVase));
 
-    Mesh = Mesh::createModelFromFile(device, (root_path + "/models/smooth_vase.obj").c_str());
+    mesh = Mesh::createModelFromFile(device, (root_path + "/models/smooth_vase.obj").c_str());
     auto smoothVase = Entity::createEntity();
-    smoothVase.mesh = Mesh;
+    smoothVase.mesh = mesh;
+    flatVase.texture = texture;
     smoothVase.transform.translation = {.5f, .5f, 2.5f};
     smoothVase.transform.scale = {3.f, 1.5f, 3.f};
     entities.push_back(std::move(smoothVase));

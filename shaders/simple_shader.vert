@@ -7,6 +7,7 @@ layout(location = 3) in vec2 uv;
 
 layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec3 normalWS;
+layout(location = 2) out vec2 fragTexCoord;
 
 layout(push_constant) uniform Push {
     mat4 transform; // projection * view * model
@@ -18,4 +19,5 @@ void main() {
 
     normalWS = normalize(mat3(push.normalMatrix) * normal);
     fragColor = color;
+    fragTexCoord = uv;
 }

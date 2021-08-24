@@ -5,6 +5,7 @@
 */
 
 #include "Entity.hpp"
+#include <stb_image.h>
 
 namespace vkr {
 

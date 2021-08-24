@@ -38,5 +38,6 @@ class Application {
     Renderer renderer{window, device};
 
     std::vector<Entity> entities;
+    std::vector<Texture> textures;
 };
 }  // namespace vkr

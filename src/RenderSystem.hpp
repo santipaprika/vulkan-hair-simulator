@@ -21,7 +21,7 @@ const std::string root_path = "..\\..\\";
 
 class RenderSystem {
    public:
-    RenderSystem(Device &device, VkRenderPass renderPass);
+    RenderSystem(Device &device, VkRenderPass renderPass, std::shared_ptr<Texture> texture);
     ~RenderSystem();
 
     RenderSystem(const RenderSystem &) = delete;
@@ -32,11 +32,18 @@ class RenderSystem {
         std::vector<Entity> &entities,
         const Camera &camera);
 
+    void loadTexture(std::shared_ptr<Texture> texture);
+
    private:
     void createPipelineLayout();
     void createPipeline(VkRenderPass renderPass);
+    
     void createDescriptorSetLayout();
     void createUniformBuffers();
+
+    void createTextureImageView(VkImage TextureImage);
+    void createTextureSampler();
+    
     void createDescriptorSets();
     void createDescriptorPool();
 
@@ -50,8 +57,10 @@ class RenderSystem {
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
 
+    VkImageView textureImageView;
+    VkSampler textureSampler;
+
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> descriptorSets;
-
 };
 }  // namespace vkr

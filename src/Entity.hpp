@@ -7,6 +7,7 @@
 #pragma once
 
 #include "Mesh.hpp"
+#include "Texture.hpp"
 
 // libs
 #include <glm/gtc/matrix_transform.hpp>
@@ -46,6 +47,7 @@ class Entity {
     id_t getId() { return id; }
 
     std::shared_ptr<Mesh> mesh{};
+    std::shared_ptr<Texture> texture{};
     glm::vec3 color{};
     TransformComponent transform{};
 
