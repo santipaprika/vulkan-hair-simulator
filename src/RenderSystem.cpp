@@ -33,6 +33,7 @@ struct UniformBufferObject {
 RenderSystem::RenderSystem(Device& device, VkRenderPass renderPass, std::shared_ptr<Texture> texture)
     : device{device} {
     createPipelineLayout();
+    createPipeline(renderPass);
 
     createUniformBuffers();
 
@@ -41,7 +42,6 @@ RenderSystem::RenderSystem(Device& device, VkRenderPass renderPass, std::shared_
 
     createDescriptorPool();
     createDescriptorSets();
-    createPipeline(renderPass);
 }
 
 RenderSystem::~RenderSystem() {
