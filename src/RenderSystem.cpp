@@ -47,13 +47,15 @@ void RenderSystem::setupDescriptors() {
     uint32_t entitiesCount = static_cast<uint32_t>(entities.size());
     std::vector<PoolSize> poolSizes = {PoolSize{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, entitiesCount},
                                        PoolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, entitiesCount}};
-    createDescriptorPool(poolSizes, entitiesCount * 2);
+    createDescriptorPool(poolSizes, entitiesCount);
 
     createDescriptorSets();
 }
 
 RenderSystem::~RenderSystem() {
-    pipeline.release();
+    
+    // Pipeline is deleted implicitly because of unique_ptr out of scope after instance destruction.
+    
     vkDestroyPipelineLayout(device.device(), pipelineLayout, nullptr);
     vkDestroyDescriptorSetLayout(device.device(), descriptorSetLayout, nullptr);
     vkDestroyDescriptorPool(device.device(), descriptorPool, nullptr);

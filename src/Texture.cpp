@@ -50,14 +50,24 @@ Texture::~Texture() {
     destroy();
 }
 
-void Texture::destroy()
-	{
-		if (descriptorInfo.imageView) vkDestroyImageView(device.device(), descriptorInfo.imageView, nullptr);
-		if (textureImage) vkDestroyImage(device.device(), textureImage, nullptr);
-		if (descriptorInfo.sampler) vkDestroySampler(device.device(), descriptorInfo.sampler, nullptr);
-
-		if (textureImageMemory) vkFreeMemory(device.device(), textureImageMemory, nullptr);
-	}
+void Texture::destroy() {
+    if (descriptorInfo.imageView) {
+        vkDestroyImageView(device.device(), descriptorInfo.imageView, nullptr);
+        descriptorInfo.imageView = nullptr;
+    }
+    if (textureImage) {
+        vkDestroyImage(device.device(), textureImage, nullptr);
+        textureImage = nullptr;
+    }
+    if (descriptorInfo.sampler) {
+        vkDestroySampler(device.device(), descriptorInfo.sampler, nullptr);
+        descriptorInfo.sampler = nullptr;
+    }
+    if (textureImageMemory) {
+        vkFreeMemory(device.device(), textureImageMemory, nullptr);
+        textureImageMemory = nullptr;
+    }
+}
 
 void Texture::createImage(const Builder& builder, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
     VkImageCreateInfo imageInfo{};
