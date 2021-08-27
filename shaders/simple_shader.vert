@@ -9,15 +9,20 @@ layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec3 normalWS;
 layout(location = 2) out vec2 fragTexCoord;
 
-layout(push_constant) uniform Push {
-    mat4 transform; // projection * view * model
+// layout(push_constant) uniform Push {
+//     mat4 transform; // projection * view * model
+//     mat4 normalMatrix;
+// } push;
+
+layout (binding = 0) uniform UniformBufferObject {
+    mat4 transform;
     mat4 normalMatrix;
-} push;
+} ubo;
 
 void main() {
-    gl_Position = push.transform * vec4(position, 1.0);
+    gl_Position = ubo.transform * vec4(position, 1.0);
 
-    normalWS = normalize(mat3(push.normalMatrix) * normal);
+    normalWS = normalize(mat3(ubo.normalMatrix) * normal);
     fragColor = color;
     fragTexCoord = uv;
 }

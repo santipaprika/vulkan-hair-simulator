@@ -7,13 +7,14 @@ layout (location = 2) in vec2 fragTexCoord;
 layout (location = 0) out vec4 outColor;
 
 layout (binding = 0) uniform UniformBufferObject {
-    vec4 color;
+    mat4 transform;
+    mat4 normalMatrix;
 } ubo;
 layout(binding = 1) uniform sampler2D texSampler;
 
 
 const vec3 DIRECTION_TO_LIGHT = normalize(vec3(1.0, -3.0, -1.0));
-vec3 AMBIENT = ubo.color.xyz;
+vec3 AMBIENT = vec3(0.1);
 
 layout(push_constant) uniform Push {
     mat4 transform; // projection * view * model

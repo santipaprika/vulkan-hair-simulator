@@ -27,33 +27,41 @@ struct SimplePushConstantData {
 };
 
 struct UniformBufferObject {
-    glm::vec4 color;
+    glm::mat4 transform;
+    glm::mat4 normalMatrix;
 };
 
-RenderSystem::RenderSystem(Device& device, VkRenderPass renderPass, std::shared_ptr<Texture> texture)
-    : device{device} {
-    createPipelineLayout();
-    createPipeline(renderPass);
+RenderSystem::RenderSystem(Device& device, VkRenderPass renderPass, std::vector<Entity>& entities)
+    : device{device}, entities{entities} {
 
     createUniformBuffers();
+    setupDescriptors();
 
-    createTextureImageView(texture->getTextureImage());
-    createTextureSampler();
+    createPipelineLayout();
+    createPipeline(renderPass);
+}
 
-    createDescriptorPool();
+void RenderSystem::setupDescriptors() {
+    createDescriptorSetLayout();
+
+    uint32_t entitiesCount = static_cast<uint32_t>(entities.size());
+    std::vector<PoolSize> poolSizes = {PoolSize{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, entitiesCount},
+                                       PoolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, entitiesCount}};
+    createDescriptorPool(poolSizes, entitiesCount * 2);
+
     createDescriptorSets();
 }
 
 RenderSystem::~RenderSystem() {
-    for (size_t i = 0; i < SwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroyBuffer(device.device(), uniformBuffers[i], nullptr);
-        vkFreeMemory(device.device(), uniformBuffersMemory[i], nullptr);
-    }
+    pipeline.release();
+    vkDestroyPipelineLayout(device.device(), pipelineLayout, nullptr);
     vkDestroyDescriptorSetLayout(device.device(), descriptorSetLayout, nullptr);
     vkDestroyDescriptorPool(device.device(), descriptorPool, nullptr);
-    vkDestroySampler(device.device(), textureSampler, nullptr);
-    vkDestroyImageView(device.device(), textureImageView, nullptr);
-    vkDestroyPipelineLayout(device.device(), pipelineLayout, nullptr);
+
+    for (auto& entity : entities) {
+        entity.uniformBuffer.destroy();
+        entity.material->getAlbedo()->destroy();
+    }
 }
 
 void RenderSystem::createPipelineLayout() {
@@ -62,14 +70,11 @@ void RenderSystem::createPipelineLayout() {
     pushConstantRange.offset = 0;
     pushConstantRange.size = sizeof(SimplePushConstantData);
 
-    createDescriptorSetLayout();
-
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
     pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
-    pipelineLayoutInfo.pushConstantRangeCount = 1;
-    pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+    pipelineLayoutInfo.pushConstantRangeCount = 0;
     if (vkCreatePipelineLayout(device.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) !=
         VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
@@ -90,25 +95,25 @@ void RenderSystem::createPipeline(VkRenderPass renderPass) {
 }
 
 void RenderSystem::createDescriptorSetLayout() {
-    VkDescriptorSetLayoutBinding uboLayoutBinding{};
-    uboLayoutBinding.binding = 0;
-    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    uboLayoutBinding.pImmutableSamplers = nullptr;  // Optional
+    std::array<VkDescriptorSetLayoutBinding, 2> setLayoutBindings{};
 
-    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-    samplerLayoutBinding.binding = 1;
-    samplerLayoutBinding.descriptorCount = 1;
-    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    samplerLayoutBinding.pImmutableSamplers = nullptr;
-    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    // Binding 0: Uniform buffers (used to pass transforms)
+    setLayoutBindings[0].binding = 0;
+    setLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    setLayoutBindings[0].descriptorCount = 1;
+    setLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBinding};
+    // Binding 1: Combined image sampler (used to pass per object texture information)
+    setLayoutBindings[1].binding = 1;
+    setLayoutBindings[1].descriptorCount = 1;
+    setLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    setLayoutBindings[1].pImmutableSamplers = nullptr;
+    setLayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-    layoutInfo.pBindings = bindings.data();
+    layoutInfo.bindingCount = static_cast<uint32_t>(setLayoutBindings.size());
+    layoutInfo.pBindings = setLayoutBindings.data();
 
     if (vkCreateDescriptorSetLayout(device.device(), &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor set layout!");
@@ -117,26 +122,32 @@ void RenderSystem::createDescriptorSetLayout() {
 
 void RenderSystem::createUniformBuffers() {
     VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-    uniformBuffers.resize(SwapChain::MAX_FRAMES_IN_FLIGHT);
-    uniformBuffersMemory.resize(SwapChain::MAX_FRAMES_IN_FLIGHT);
-    for (size_t i = 0; i < SwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
-        device.createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+
+    for (auto& entity : entities) {
+        device.createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                            entity.uniformBuffer.buffer, entity.uniformBuffer.memory);
+
+        entity.uniformBuffer.device = device.device();
+        entity.uniformBuffer.map(sizeof(UniformBufferObject));
+        memcpy(entity.uniformBuffer.mapped, &entity.uniformBuffer, sizeof(entity.uniformBuffer));
+
+        entity.uniformBuffer.setupDescriptor(bufferSize);
     }
 }
 
-void RenderSystem::createDescriptorPool() {
-    std::array<VkDescriptorPoolSize, 2> poolSizes{};
-    poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[0].descriptorCount = static_cast<uint32_t>(SwapChain::MAX_FRAMES_IN_FLIGHT);
-    poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[1].descriptorCount = static_cast<uint32_t>(SwapChain::MAX_FRAMES_IN_FLIGHT);
+void RenderSystem::createDescriptorPool(const std::vector<PoolSize>& poolSizes, int maxSets) {
+    std::vector<VkDescriptorPoolSize> descriptorPoolSizes(poolSizes.size());
+
+    for (int i = 0; i < poolSizes.size(); i++) {
+        descriptorPoolSizes[i].type = poolSizes[i].type;
+        descriptorPoolSizes[i].descriptorCount = poolSizes[i].descriptorCount;
+    }
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-    ;
-    poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = static_cast<uint32_t>(SwapChain::MAX_FRAMES_IN_FLIGHT);
+    poolInfo.poolSizeCount = static_cast<uint32_t>(descriptorPoolSizes.size());
+    poolInfo.pPoolSizes = descriptorPoolSizes.data();
+    poolInfo.maxSets = maxSets;
 
     if (vkCreateDescriptorPool(device.device(), &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor pool!");
@@ -145,125 +156,68 @@ void RenderSystem::createDescriptorPool() {
 
 void RenderSystem::createDescriptorSets() {
     std::vector<VkDescriptorSetLayout> layouts(SwapChain::MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
-    VkDescriptorSetAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = static_cast<uint32_t>(layouts.size());
-    allocInfo.pSetLayouts = layouts.data();
 
-    descriptorSets.resize(SwapChain::MAX_FRAMES_IN_FLIGHT);
-    if (vkAllocateDescriptorSets(device.device(), &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate descriptor sets!");
-    }
+    for (auto& entity : entities) {
+        // Allocates an empty descriptor set without actual descriptors from the pool using the set layout
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = descriptorPool;
+        // This is for each entity. Even if there are two bindings per object, these are contained in a single descriptor.
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &descriptorSetLayout;
 
-    for (size_t i = 0; i < SwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = uniformBuffers[i];
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(UniformBufferObject);
+        if (vkAllocateDescriptorSets(device.device(), &allocInfo, &entity.descriptorSet) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
 
-        VkDescriptorImageInfo imageInfo{};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = textureImageView;
-        imageInfo.sampler = textureSampler;
+        // Update the descriptor set with the actual descriptors matching shader bindings set in the layout
 
+        // Binding 0: Object matrices uniform buffer
         std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
         descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[0].dstSet = descriptorSets[i];
+        descriptorWrites[0].dstSet = entity.descriptorSet;
         descriptorWrites[0].dstBinding = 0;
         descriptorWrites[0].dstArrayElement = 0;
 
         descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptorWrites[0].descriptorCount = 1;
 
-        descriptorWrites[0].pBufferInfo = &bufferInfo;
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = entity.uniformBuffer.buffer;
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(UniformBufferObject);
 
+        descriptorWrites[0].pBufferInfo = &entity.uniformBuffer.descriptorInfo;
+
+        // Binding 1: Object texture
         descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[1].dstSet = descriptorSets[i];
+        descriptorWrites[1].dstSet = entity.descriptorSet;
         descriptorWrites[1].dstBinding = 1;
         descriptorWrites[1].dstArrayElement = 0;
         descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pImageInfo = &imageInfo;
+
+        descriptorWrites[1].pImageInfo = &entity.material->getAlbedo()->getDescriptorInfo();
 
         vkUpdateDescriptorSets(device.device(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
 }
 
-void RenderSystem::renderEntities(
-    VkCommandBuffer commandBuffer,
-    std::vector<Entity>& entities,
-    const Camera& camera) {
+void RenderSystem::renderEntities(VkCommandBuffer commandBuffer, const Camera& camera) {
     pipeline->bind(commandBuffer);
-
-    void* data;
-    UniformBufferObject ubo{glm::vec4(0.1f, 0.1f, 0.1f, 1.f)};
-    vkMapMemory(device.device(), uniformBuffersMemory[0], 0, sizeof(ubo), 0, &data);
-    memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(device.device(), uniformBuffersMemory[0]);
 
     auto projectionView = camera.getProjection() * camera.getView();
 
     for (auto& entity : entities) {
-        SimplePushConstantData push{};
         auto modelMatrix = entity.transform.mat4();
-        push.transform = projectionView * modelMatrix;
-        push.normalMatrix = entity.transform.normalMatrix();
+        UniformBufferObject entityUBO = {projectionView * modelMatrix, entity.transform.normalMatrix()};
 
-        vkCmdPushConstants(
-            commandBuffer,
-            pipelineLayout,
-            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-            0,
-            sizeof(SimplePushConstantData),
-            &push);
+        memcpy(entity.uniformBuffer.mapped, &entityUBO, sizeof(entityUBO));
+
         entity.mesh->bind(commandBuffer);
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[0], 0, nullptr);
-        // vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &entity.descriptorSet, 0, nullptr);
         entity.mesh->draw(commandBuffer);
     }
-}
-
-void RenderSystem::createTextureSampler() {
-    VkSamplerCreateInfo samplerInfo{};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-
-    // Need device properties to know anisotropy limits
-    VkPhysicalDeviceProperties properties{};
-    vkGetPhysicalDeviceProperties(device.physicalDevice(), &properties);
-    samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerInfo.mipLodBias = 0.0f;
-    samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f;
-
-    if (vkCreateSampler(device.device(), &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create texture sampler!");
-    }
-}
-
-void RenderSystem::createTextureImageView(VkImage textureImage) {
-    
-    // std::vector<VkImage> *imageView = Texture::getTextureVkImagesList();
-    textureImageView = SwapChain::createImageView(device, textureImage, VK_FORMAT_R8G8B8A8_SRGB);
-}
-
-
-void RenderSystem::loadTexture(std::shared_ptr<Texture> texture) 
-{
-    createTextureImageView(texture->getTextureImage());
-    createTextureSampler();   
 }
 
 }  // namespace vkr

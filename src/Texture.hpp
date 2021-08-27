@@ -25,12 +25,18 @@ class Texture {
     Texture(Device &device, const Builder &builder);
     ~Texture();
 
+    void destroy();
+
     Texture(const Texture &) = delete;
     Texture &operator=(const Texture &) = delete;
 
     void createImage(const Builder &builder, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage &image, VkDeviceMemory &imageMemory);
     static std::unique_ptr<Texture> createTextureFromFile(Device &device, const std::string &filepath);
     VkImage getTextureImage() { return textureImage; }
+    const VkDescriptorImageInfo &getDescriptorInfo() { return descriptorInfo; }
+
+    void createTextureImageView();
+    void createTextureSampler();
 
    private:
     Device &device;
@@ -39,5 +45,7 @@ class Texture {
     VkDeviceMemory stagingBufferMemory;
     VkImage textureImage;
     VkDeviceMemory textureImageMemory;
+
+    VkDescriptorImageInfo descriptorInfo;
 };
 }  // namespace vkr

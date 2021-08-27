@@ -19,33 +19,33 @@ namespace vkr {
 
 const std::string root_path = "..\\..\\";
 
+struct PoolSize {
+    VkDescriptorType type;
+    uint32_t descriptorCount;
+};
+
 class RenderSystem {
    public:
-    RenderSystem(Device &device, VkRenderPass renderPass, std::shared_ptr<Texture> texture);
+    RenderSystem(Device &device, VkRenderPass renderPass, std::vector<Entity> &entities);
     ~RenderSystem();
 
     RenderSystem(const RenderSystem &) = delete;
     RenderSystem &operator=(const RenderSystem &) = delete;
 
+    void setupDescriptors();
+
     void renderEntities(
         VkCommandBuffer commandBuffer,
-        std::vector<Entity> &entities,
         const Camera &camera);
 
-    void loadTexture(std::shared_ptr<Texture> texture);
-
    private:
-    void createPipelineLayout();
-    void createPipeline(VkRenderPass renderPass);
-    
     void createDescriptorSetLayout();
     void createUniformBuffers();
-
-    void createTextureImageView(VkImage TextureImage);
-    void createTextureSampler();
-    
+    void createDescriptorPool(const std::vector<PoolSize> &poolSizes, int maxSets);
     void createDescriptorSets();
-    void createDescriptorPool();
+
+    void createPipelineLayout();
+    void createPipeline(VkRenderPass renderPass);
 
     Device &device;
 
@@ -54,13 +54,10 @@ class RenderSystem {
     VkDescriptorSetLayout descriptorSetLayout;
     VkPipelineLayout pipelineLayout;
 
-    std::vector<VkBuffer> uniformBuffers;
-    std::vector<VkDeviceMemory> uniformBuffersMemory;
-
-    VkImageView textureImageView;
-    VkSampler textureSampler;
+    std::vector<Entity> &entities;
 
     VkDescriptorPool descriptorPool;
-    std::vector<VkDescriptorSet> descriptorSets;
+
+    void *data;
 };
 }  // namespace vkr
