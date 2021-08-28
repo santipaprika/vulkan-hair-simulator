@@ -27,11 +27,14 @@ class Application {
     Application(const Application &) = delete;
     Application &operator=(const Application &) = delete;
 
+    Device& getDevice() { return device; }
+    Window& getWindow() { return window; }
+    Renderer& getRenderer() { return renderer; }
+
     void run();
 
    private:
     void loadEntities();
-    void setupImGuiContext();
 
     Window window{WIDTH, HEIGHT, "Vulkan Tutorial"};
     Device device{window};
@@ -40,14 +43,5 @@ class Application {
     std::vector<Entity> entities;
     std::vector<Texture> textures;
 
-    void createImGuiDescriptorPool();
-    VkDescriptorPool imGuiDescriptorPool;
-
-    void createImGuiRenderPass();
-    VkRenderPass imGuiRenderPass;
-
-    VkCommandPool imGuiCommandPool;
-    std::vector<VkCommandBuffer> imGuiCommandBuffers;
-    std::vector<VkFramebuffer> imGuiFramebuffers;
 };
 }  // namespace vkr
