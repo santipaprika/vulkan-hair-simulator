@@ -81,6 +81,7 @@ class Device {
         VkDeviceMemory &imageMemory);
 
     VkPhysicalDeviceProperties properties;
+    void createCommandPool(VkCommandPool &commandPool, VkCommandPoolCreateFlags flags);
 
    private:
     void createInstance();

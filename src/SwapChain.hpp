@@ -34,6 +34,7 @@ class SwapChain {
     VkFramebuffer getFrameBuffer(int index) { return swapChainFramebuffers[index]; }
     VkRenderPass getRenderPass() { return renderPass; }
     VkImageView getImageView(int index) { return swapChainImageViews[index]; }
+    std::vector<VkImageView> getImageViews() { return swapChainImageViews; }
     size_t imageCount() { return swapChainImages.size(); }
     VkFormat getSwapChainImageFormat() { return swapChainImageFormat; }
     VkExtent2D getSwapChainExtent() { return swapChainExtent; }
@@ -46,13 +47,15 @@ class SwapChain {
     VkFormat findDepthFormat();
 
     VkResult acquireNextImage(uint32_t *imageIndex);
-    VkResult submitCommandBuffers(const VkCommandBuffer *buffers, uint32_t *imageIndex);
+    VkResult submitCommandBuffers(const std::vector<VkCommandBuffer> &buffers, uint32_t *imageIndex);
     static VkImageView createImageView(Device &device, VkImage image, VkFormat format);
 
     bool compareSwapFormats(const SwapChain &swapChain) const {
         return swapChain.swapChainDepthFormat == swapChainDepthFormat &&
                swapChain.swapChainImageFormat == swapChainImageFormat;
     }
+
+    void createFramebuffers(const std::vector<std::vector<VkImageView>>& attachments, std::vector<VkFramebuffer>& framebuffers, VkRenderPass renderPass);
 
    private:
     void init();

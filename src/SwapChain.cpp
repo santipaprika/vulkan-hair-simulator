@@ -88,7 +88,7 @@ VkResult SwapChain::acquireNextImage(uint32_t *imageIndex) {
     return result;
 }
 
-VkResult SwapChain::submitCommandBuffers(const VkCommandBuffer *buffers, uint32_t *imageIndex) {
+VkResult SwapChain::submitCommandBuffers(const std::vector<VkCommandBuffer> &buffers, uint32_t *imageIndex) {
     if (imagesInFlight[*imageIndex] != VK_NULL_HANDLE) {
         vkWaitForFences(device.device(), 1, &imagesInFlight[*imageIndex], VK_TRUE, UINT64_MAX);
     }
@@ -103,8 +103,8 @@ VkResult SwapChain::submitCommandBuffers(const VkCommandBuffer *buffers, uint32_
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
 
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = buffers;
+    submitInfo.commandBufferCount = static_cast<uint32_t>(buffers.size());
+    submitInfo.pCommandBuffers = buffers.data();
 
     VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
     submitInfo.signalSemaphoreCount = 1;
@@ -247,7 +247,9 @@ void SwapChain::createRenderPass() {
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    // Since we are going to add an ImGui render pass, we are not presenting yet (VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkAttachmentReference colorAttachmentRef = {};
     colorAttachmentRef.attachment = 0;
@@ -285,17 +287,22 @@ void SwapChain::createRenderPass() {
     }
 }
 
-void SwapChain::createFramebuffers() {
-    swapChainFramebuffers.resize(imageCount());
+void SwapChain::createFramebuffers(const std::vector<std::vector<VkImageView>> &attachments,
+                                   std::vector<VkFramebuffer> &framebuffers,
+                                   VkRenderPass renderPass) {
+    framebuffers.resize(imageCount());
     for (size_t i = 0; i < imageCount(); i++) {
-        std::array<VkImageView, 2> attachments = {swapChainImageViews[i], depthImageViews[i]};
+        std::vector<VkImageView> framebufferAttachments;
+        for (auto &attachment : attachments) {
+            framebufferAttachments.push_back(attachment[i]);
+        }
 
         VkExtent2D swapChainExtent = getSwapChainExtent();
         VkFramebufferCreateInfo framebufferInfo = {};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferInfo.renderPass = renderPass;
-        framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-        framebufferInfo.pAttachments = attachments.data();
+        framebufferInfo.attachmentCount = static_cast<uint32_t>(framebufferAttachments.size());
+        framebufferInfo.pAttachments = framebufferAttachments.data();
         framebufferInfo.width = swapChainExtent.width;
         framebufferInfo.height = swapChainExtent.height;
         framebufferInfo.layers = 1;
@@ -304,10 +311,14 @@ void SwapChain::createFramebuffers() {
                 device.device(),
                 &framebufferInfo,
                 nullptr,
-                &swapChainFramebuffers[i]) != VK_SUCCESS) {
+                &framebuffers[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create framebuffer!");
         }
     }
+}
+
+void SwapChain::createFramebuffers() {
+    createFramebuffers(std::vector({swapChainImageViews, depthImageViews}), swapChainFramebuffers, renderPass);
 }
 
 void SwapChain::createDepthResources() {

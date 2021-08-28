@@ -24,13 +24,29 @@
 #include <array>
 #include <cassert>
 #include <chrono>
+#include <iostream>
 #include <stdexcept>
 
 namespace vkr {
 
 Application::Application() { loadEntities(); }
 
-Application::~Application() {}
+Application::~Application() {
+    for (auto framebuffer : imGuiFramebuffers) {
+        vkDestroyFramebuffer(device.device(), framebuffer, nullptr);
+    }
+
+    vkDestroyRenderPass(device.device(), imGuiRenderPass, nullptr);
+
+    vkFreeCommandBuffers(device.device(), imGuiCommandPool, static_cast<uint32_t>(imGuiCommandBuffers.size()), imGuiCommandBuffers.data());
+    vkDestroyCommandPool(device.device(), imGuiCommandPool, nullptr);
+
+    vkDestroyDescriptorPool(device.device(), imGuiDescriptorPool, nullptr);
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+}
 
 void Application::run() {
     RenderSystem renderSystem{device, renderer.getSwapChainRenderPass(), entities};
@@ -39,16 +55,17 @@ void Application::run() {
     auto viewerObject = Entity::createEntity();
     InputController cameraController{};
 
-    // setupImGuiContext();
+    setupImGuiContext();
 
     auto currentTime = std::chrono::high_resolution_clock::now();
     while (!window.shouldClose()) {
         glfwPollEvents();
 
-        // ImGui_ImplVulkan_NewFrame();
-        // ImGui_ImplGlfw_NewFrame();
-        // ImGui::NewFrame();
-        // ImGui::ShowDemoWindow();
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        ImGui::ShowDemoWindow();
+        ImGui::Render();
 
         auto newTime = std::chrono::high_resolution_clock::now();
         float frameTime =
@@ -61,25 +78,46 @@ void Application::run() {
         float aspect = renderer.getAspectRatio();
         camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 10.f);
 
-        // Rendering
-        // ImGui::Render();
-        // ImDrawData* draw_data = ImGui::GetDrawData();
-
         if (auto commandBuffer = renderer.beginFrame()) {
+            renderer.beginCommandBuffer(commandBuffer);
             renderer.beginSwapChainRenderPass(commandBuffer);
 
             renderSystem.renderEntities(commandBuffer, camera);
 
             renderer.endSwapChainRenderPass(commandBuffer);
-            renderer.endFrame();
+            renderer.endCommandBuffer(commandBuffer);
+
+            int frameIdx = renderer.getFrameIndex();
+            int imageIdx = renderer.getImageIndex();
+            renderer.beginCommandBuffer(imGuiCommandBuffers[frameIdx]);
+            renderer.beginSwapChainRenderPass(imGuiCommandBuffers[frameIdx],
+                                              imGuiRenderPass,
+                                              imGuiFramebuffers[imageIdx],
+                                              std::vector<VkClearValue>({{0.f, 0.f, 0.f, 1.f}}),
+                                              false);
+
+            // Record Imgui Draw Data and draw funcs into command buffer
+            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), imGuiCommandBuffers[frameIdx]);
+
+            renderer.endSwapChainRenderPass(imGuiCommandBuffers[frameIdx], false);
+            renderer.endCommandBuffer(imGuiCommandBuffers[frameIdx]);
+
+            bool wasWindowResized = false;
+            renderer.endFrame(std::vector<VkCommandBuffer>({commandBuffer, imGuiCommandBuffers[frameIdx]}), wasWindowResized);
+
+            if (wasWindowResized) {
+                for (auto framebuffer : imGuiFramebuffers) {
+                    vkDestroyFramebuffer(device.device(), framebuffer, nullptr);
+                }
+
+                renderer.getSwapChain()->createFramebuffers(std::vector({renderer.getSwapChain()->getImageViews()}),
+                                                            imGuiFramebuffers,
+                                                            imGuiRenderPass);
+            }
         }
     }
 
     vkDeviceWaitIdle(device.device());
-
-    // ImGui_ImplVulkan_Shutdown();
-    // ImGui_ImplGlfw_Shutdown();
-    // ImGui::DestroyContext();
 }
 
 void Application::loadEntities() {
@@ -128,51 +166,94 @@ void Application::setupImGuiContext() {
     initInfo.QueueFamily = device.queueFamilyIndices().graphicsFamily;
     initInfo.Queue = device.graphicsQueue();
     initInfo.PipelineCache = VK_NULL_HANDLE;
-    // initInfo.DescriptorPool = device.getDescriptorPool();
+
+    createImGuiDescriptorPool();
+    initInfo.DescriptorPool = imGuiDescriptorPool;
+
     initInfo.Allocator = VK_NULL_HANDLE;
     initInfo.MinImageCount = device.getSwapChainSupport().capabilities.minImageCount + 1;
     initInfo.ImageCount = renderer.getSwapChainImageCount();
     initInfo.CheckVkResultFn = checkVkResult;
-    ImGui_ImplVulkan_Init(&initInfo, renderer.getSwapChainRenderPass());
 
-    // Upload Fonts
-    {
-        // if (renderer.acquireNextSwapChainImage()) {
-        // Use any command queue
-        VkCommandPool commandPool = device.getCommandPool();
-        VkCommandBuffer commandBuffer = renderer.getCurrentCommandBuffer(false);
+    createImGuiRenderPass();
+    ImGui_ImplVulkan_Init(&initInfo, imGuiRenderPass);
 
-        if (vkResetCommandPool(device.device(), commandPool, 0) != VK_SUCCESS) {
-            throw std::runtime_error("failed to reset command pool!");
-        }
+    device.createCommandPool(imGuiCommandPool, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    renderer.createCommandBuffers(imGuiCommandBuffers, imGuiCommandPool);
 
-        VkCommandBufferBeginInfo beginInfo = {};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-            throw std::runtime_error("failed to begin command buffer for loading ImGui font!");
-        }
+    renderer.getSwapChain()->createFramebuffers(std::vector({renderer.getSwapChain()->getImageViews()}),
+                                                imGuiFramebuffers,
+                                                imGuiRenderPass);
 
-        ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+    VkCommandBuffer commandBuffer = device.beginSingleTimeCommands();
+    ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+    device.endSingleTimeCommands(commandBuffer);
+}
 
-        VkSubmitInfo endInfo = {};
-        endInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        endInfo.commandBufferCount = 1;
-        endInfo.pCommandBuffers = &commandBuffer;
-        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to end command buffer for loading ImGui font!");
-        }
+void Application::createImGuiDescriptorPool() {
+    VkDescriptorPoolSize poolSizes[] =
+        {
+            {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+            {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+            {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+            {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+            {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
+    VkDescriptorPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    poolInfo.maxSets = 1000 * IM_ARRAYSIZE(poolSizes);
+    poolInfo.poolSizeCount = (uint32_t)IM_ARRAYSIZE(poolSizes);
+    poolInfo.pPoolSizes = poolSizes;
 
-        if (vkQueueSubmit(device.graphicsQueue(), 1, &endInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
-            throw std::runtime_error("failed to submit queue for loading ImGui font!");
-        }
+    if (vkCreateDescriptorPool(device.device(), &poolInfo, nullptr, &imGuiDescriptorPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create separate ImGui descriptor pool");
+    }
+}
 
-        if (vkDeviceWaitIdle(device.device()) != VK_SUCCESS) {
-            throw std::runtime_error("failed to wait for idle device when loading ImGui font!");
-        }
+void Application::createImGuiRenderPass() {
+    VkAttachmentDescription attachment = {};
+    attachment.format = renderer.getSwapChain()->getSwapChainImageFormat();
+    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-        ImGui_ImplVulkan_DestroyFontUploadObjects();
-        // }
+    VkAttachmentReference colorAttachment = {};
+    colorAttachment.attachment = 0;
+    colorAttachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachment;
+
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    VkRenderPassCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    info.attachmentCount = 1;
+    info.pAttachments = &attachment;
+    info.subpassCount = 1;
+    info.pSubpasses = &subpass;
+    info.dependencyCount = 1;
+    info.pDependencies = &dependency;
+    if (vkCreateRenderPass(device.device(), &info, nullptr, &imGuiRenderPass) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create ImGui's separate render pass");
     }
 }
 

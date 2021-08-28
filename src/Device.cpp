@@ -184,15 +184,18 @@ void Device::createLogicalDevice() {
 }
 
 void Device::createCommandPool() {
+    createCommandPool(_commandPool, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+}
+
+void Device::createCommandPool(VkCommandPool &commandPool, VkCommandPoolCreateFlags flags) {
     QueueFamilyIndices queueFamilyIndices = findPhysicalQueueFamilies();
 
     VkCommandPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
-    poolInfo.flags =
-        VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    poolInfo.flags = flags;
 
-    if (vkCreateCommandPool(_device, &poolInfo, nullptr, &_commandPool) != VK_SUCCESS) {
+    if (vkCreateCommandPool(_device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create command pool!");
     }
 }

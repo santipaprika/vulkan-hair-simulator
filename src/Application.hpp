@@ -39,5 +39,15 @@ class Application {
 
     std::vector<Entity> entities;
     std::vector<Texture> textures;
+
+    void createImGuiDescriptorPool();
+    VkDescriptorPool imGuiDescriptorPool;
+
+    void createImGuiRenderPass();
+    VkRenderPass imGuiRenderPass;
+
+    VkCommandPool imGuiCommandPool;
+    std::vector<VkCommandBuffer> imGuiCommandBuffers;
+    std::vector<VkFramebuffer> imGuiFramebuffers;
 };
 }  // namespace vkr
