@@ -17,11 +17,10 @@ const vec3 DIRECTION_TO_LIGHT = normalize(vec3(1.0, -3.0, -1.0));
 vec3 AMBIENT = vec3(0.1);
 
 layout(push_constant) uniform Push {
-    mat4 transform; // projection * view * model
-    mat4 normalMatrix;
+    float brightness;
 } push;
 
 void main() {
     vec3 lightIntensity = AMBIENT + vec3(max(dot(normalWS, DIRECTION_TO_LIGHT), 0));
-    outColor = texture(texSampler,fragTexCoord*3) * vec4(fragColor * lightIntensity, 1.0);
+    outColor = texture(texSampler,fragTexCoord*3) * vec4(fragColor * lightIntensity, 1.0) + vec4(vec3(push.brightness), 0.0);
 }

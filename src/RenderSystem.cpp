@@ -22,8 +22,7 @@
 namespace vkr {
 
 struct SimplePushConstantData {
-    glm::mat4 transform{1.f};
-    glm::mat4 normalMatrix{1.f};
+    float brightness;
 };
 
 struct UniformBufferObject {
@@ -33,7 +32,6 @@ struct UniformBufferObject {
 
 RenderSystem::RenderSystem(Device& device, VkRenderPass renderPass, std::vector<Entity>& entities)
     : device{device}, entities{entities} {
-
     createUniformBuffers();
     setupDescriptors();
 
@@ -53,9 +51,8 @@ void RenderSystem::setupDescriptors() {
 }
 
 RenderSystem::~RenderSystem() {
-    
     // Pipeline is deleted implicitly because of unique_ptr out of scope after instance destruction.
-    
+
     vkDestroyPipelineLayout(device.device(), pipelineLayout, nullptr);
     vkDestroyDescriptorSetLayout(device.device(), descriptorSetLayout, nullptr);
     vkDestroyDescriptorPool(device.device(), descriptorPool, nullptr);
@@ -68,7 +65,7 @@ RenderSystem::~RenderSystem() {
 
 void RenderSystem::createPipelineLayout() {
     VkPushConstantRange pushConstantRange{};
-    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     pushConstantRange.offset = 0;
     pushConstantRange.size = sizeof(SimplePushConstantData);
 
@@ -76,7 +73,9 @@ void RenderSystem::createPipelineLayout() {
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
     pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
-    pipelineLayoutInfo.pushConstantRangeCount = 0;
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+
     if (vkCreatePipelineLayout(device.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) !=
         VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
@@ -215,6 +214,15 @@ void RenderSystem::renderEntities(VkCommandBuffer commandBuffer, const Camera& c
         UniformBufferObject entityUBO = {projectionView * modelMatrix, entity.transform.normalMatrix()};
 
         memcpy(entity.uniformBuffer.mapped, &entityUBO, sizeof(entityUBO));
+
+        SimplePushConstantData push{0.1f};
+        vkCmdPushConstants(
+            commandBuffer,
+            pipelineLayout,
+            VK_SHADER_STAGE_FRAGMENT_BIT,
+            0,
+            sizeof(SimplePushConstantData),
+            &push);
 
         entity.mesh->bind(commandBuffer);
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &entity.descriptorSet, 0, nullptr);
