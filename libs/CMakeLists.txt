@@ -6,6 +6,5 @@ option(GLFW_DOCUMENT_INTERNALS "Include internals in documentation" OFF)
 
 add_subdirectory(glfw)
 add_subdirectory(glm)
-add_subdirectory(tiny_obj_loader)
 add_subdirectory(stb_image)
 add_subdirectory(imgui)
