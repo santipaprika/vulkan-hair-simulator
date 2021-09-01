@@ -4,7 +4,7 @@
 *   Copyright (c) 2020 Brendan Galea
 */
 
-#include "Entity.hpp"
+#include <Entity.hpp>
 #include <stb_image.h>
 
 namespace vkr {

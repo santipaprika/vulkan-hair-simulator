@@ -6,9 +6,12 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/build/debug")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/build/release")
 
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
+# add_subdirectory(vulkan)
 
-file(GLOB project_src CONFIGURE_DEPENDS "*.h" "*.cpp")
+include_directories("vulkan" "${CMAKE_CURRENT_LIST_DIR}")
+file(GLOB project_src CONFIGURE_DEPENDS "*.hpp" "*.cpp" "vulkan/*.hpp" "vulkan/*.cpp")
+# link_directories(${CMAKE_CURRENT_SOURCE_DIRrc}/s/vulkan)
 
 add_executable( ${PROJECT_NAME} ${project_src} )
 
-target_link_libraries( ${PROJECT_NAME} Vulkan::Vulkan glfw glm tinyobjloader stb_image imgui )
+target_link_libraries( ${PROJECT_NAME} Vulkan::Vulkan glfw glm tinyobjloader stb_image imgui)

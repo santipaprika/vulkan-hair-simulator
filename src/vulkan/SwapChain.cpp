@@ -4,7 +4,7 @@
 *   Copyright (c) 2020 Brendan Galea
 */
 
-#include "SwapChain.hpp"
+#include <SwapChain.hpp>
 
 // std
 #include <array>

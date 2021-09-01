@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "Mesh.hpp"
-#include "Material.hpp"
-#include "Buffer.hpp"
+#include <Mesh.hpp>
+#include <Material.hpp>
+#include <Buffer.hpp>
 
 // libs
 #include <glm/gtc/matrix_transform.hpp>
@@ -51,6 +51,7 @@ class Entity {
     std::shared_ptr<Material> material{};
     glm::vec3 color{};
     TransformComponent transform{};
+    
     VkDescriptorSet descriptorSet;
     Buffer uniformBuffer;
 

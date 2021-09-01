@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Device.hpp"
+#include <Device.hpp>
 
 // img
 #include <stb_image.h>

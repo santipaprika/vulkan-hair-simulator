@@ -4,9 +4,8 @@
 *   Copyright (c) 2020 Brendan Galea
 */
 
-#include "Pipeline.hpp"
-
-#include "Mesh.hpp"
+#include <Pipeline.hpp>
+#include <Mesh.hpp>
 
 // std
 #include <cassert>

@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "Device.hpp"
-#include "SwapChain.hpp"
-#include "Window.hpp"
+#include <Device.hpp>
+#include <SwapChain.hpp>
+#include <Window.hpp>
 
 // std
 #include <cassert>

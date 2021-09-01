@@ -4,7 +4,7 @@
 *   Copyright (c) 2020 Brendan Galea
 */
 
-#include "Renderer.hpp"
+#include <Renderer.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "Device.hpp"
+#include <Device.hpp>
 
 // vulkan headers
 #include <vulkan/vulkan.h>

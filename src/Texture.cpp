@@ -1,8 +1,8 @@
-#include "Texture.hpp"
+#include <Texture.hpp>
+#include <SwapChain.hpp>
 
 #include <stdexcept>
 
-#include "SwapChain.hpp"
 
 namespace vkr {
 

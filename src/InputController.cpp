@@ -4,7 +4,7 @@
 *   Copyright (c) 2020 Brendan Galea
 */
 
-#include "InputController.hpp"
+#include <InputController.hpp>
 
 // std
 #include <limits>

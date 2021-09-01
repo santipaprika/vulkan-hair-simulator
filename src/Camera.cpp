@@ -4,7 +4,7 @@
 *   Copyright (c) 2020 Brendan Galea
 */
 
-#include "Camera.hpp"
+#include <Camera.hpp>
 
 // std
 #include <cassert>

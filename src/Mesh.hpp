@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "Device.hpp"
+#include <Device.hpp>
 
 // libs
 #define GLM_FORCE_RADIANS

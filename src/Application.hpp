@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include "Device.hpp"
-#include "Entity.hpp"
-#include "Renderer.hpp"
-#include "Window.hpp"
+#include <Device.hpp>
+#include <Entity.hpp>
+#include <Renderer.hpp>
+#include <Window.hpp>
 
 // std
 #include <memory>

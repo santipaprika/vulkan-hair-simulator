@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "Entity.hpp"
-#include "Window.hpp"
+#include <Entity.hpp>
+#include <Window.hpp>
 
 namespace vkr {
 class InputController {

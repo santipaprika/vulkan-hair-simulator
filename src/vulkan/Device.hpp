@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "Window.hpp"
+#include <Window.hpp>
 
 // std lib headers
 #include <string>

@@ -4,12 +4,12 @@
 *   Copyright (c) 2020 Brendan Galea
 */
 
-#include "Application.hpp"
+#include <Application.hpp>
 
-#include "Camera.hpp"
-#include "ImGuiHelper.hpp"
-#include "InputController.hpp"
-#include "RenderSystem.hpp"
+#include <Camera.hpp>
+#include <ImGuiHelper.hpp>
+#include <InputController.hpp>
+#include <RenderSystem.hpp>
 
 // libs
 #define GLM_FORCE_RADIANS

@@ -4,7 +4,7 @@
 *   Copyright (c) 2020 Brendan Galea
 */
 
-#include "Device.hpp"
+#include <Device.hpp>
 
 // std headers
 #include <cstring>
@@ -199,33 +199,6 @@ void Device::createCommandPool(VkCommandPool &commandPool, VkCommandPoolCreateFl
         throw std::runtime_error("failed to create command pool!");
     }
 }
-
-// void Device::createDescriptorPool() {
-//     VkDescriptorPoolSize poolSizes[] =
-//         {
-//             {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
-//             {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
-//             {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
-//             {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
-//             {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
-//             {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
-//             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
-//             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
-//             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
-//             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
-//             {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
-//     uint32_t poolSizeCount = static_cast<uint32_t>(std::size(poolSizes));
-//     VkDescriptorPoolCreateInfo poolInfo = {};
-//     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-//     poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-//     poolInfo.maxSets = 1000 * poolSizeCount;
-//     poolInfo.poolSizeCount = poolSizeCount;
-//     poolInfo.pPoolSizes = poolSizes;
-
-//     if (vkCreateDescriptorPool(_device, &poolInfo, nullptr, &_descriptorPool) != VK_SUCCESS) {
-//         throw std::runtime_error("failed to create command pool!");
-//     }
-// }
 
 void Device::createSurface() { _window.createWindowSurface(_instance, &_surface); }
 

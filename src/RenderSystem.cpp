@@ -4,9 +4,9 @@
 *   Copyright (c) 2020 Brendan Galea
 */
 
-#include "RenderSystem.hpp"
+#include <RenderSystem.hpp>
 
-#include "SwapChain.hpp"
+#include <SwapChain.hpp>
 
 // libs
 #define GLM_FORCE_RADIANS

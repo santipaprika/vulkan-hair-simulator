@@ -8,11 +8,11 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-#include "Buffer.hpp"
+#include <Buffer.hpp>
+#include <Device.hpp>
 
 #include <cassert>
 
-#include "Device.hpp"
 
 namespace vkr {
 

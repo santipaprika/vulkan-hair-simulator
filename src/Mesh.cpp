@@ -4,9 +4,9 @@
 *   Copyright (c) 2020 Brendan Galea
 */
 
-#include "Mesh.hpp"
+#include <Mesh.hpp>
 
-#include "Utils.hpp"
+#include <Utils.hpp>
 
 // libs
 #define TINYOBJLOADER_IMPLEMENTATION

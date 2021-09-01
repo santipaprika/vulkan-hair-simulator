@@ -4,7 +4,7 @@
 *   Copyright (c) 2020 Brendan Galea
 */
 
-#include "Application.hpp"
+#include <Application.hpp>
 
 // std
 #include <cstdlib>
