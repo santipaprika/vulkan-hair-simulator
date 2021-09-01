@@ -17,8 +17,6 @@
 
 namespace vkr {
 
-const std::string root_path = "..\\..\\";
-
 struct PoolSize {
     VkDescriptorType type;
     uint32_t descriptorCount;
