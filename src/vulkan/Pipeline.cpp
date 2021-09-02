@@ -4,8 +4,8 @@
 *   Copyright (c) 2020 Brendan Galea
 */
 
-#include <Pipeline.hpp>
 #include <Mesh.hpp>
+#include <Pipeline.hpp>
 
 // std
 #include <cassert>
@@ -15,13 +15,9 @@
 
 namespace vkr {
 
-Pipeline::Pipeline(
-    Device& device,
-    const std::string& vertFilepath,
-    const std::string& fragFilepath,
-    const PipelineConfigInfo& configInfo)
+Pipeline::Pipeline(Device& device)
     : device{device} {
-    createGraphicsPipeline(vertFilepath, fragFilepath, configInfo);
+    // createGraphicsPipeline(vertFilepath, fragFilepath, configInfo);
 }
 
 Pipeline::~Pipeline() {
@@ -47,10 +43,10 @@ std::vector<char> Pipeline::readFile(const std::string& filepath) {
     return buffer;
 }
 
-void Pipeline::createGraphicsPipeline(
-    const std::string& vertFilepath,
-    const std::string& fragFilepath,
-    const PipelineConfigInfo& configInfo) {
+PipelineSet Pipeline::createGraphicsPipelines(Device& device,
+                                              const std::string& vertFilepath,
+                                              const std::string& fragFilepath,
+                                              const PipelineConfigInfo& configInfo) {
     assert(
         configInfo.pipelineLayout != VK_NULL_HANDLE &&
         "Cannot create graphics pipeline: no pipelineLayout provided in configInfo");
@@ -61,24 +57,18 @@ void Pipeline::createGraphicsPipeline(
     auto vertCode = readFile(vertFilepath);
     auto fragCode = readFile(fragFilepath);
 
-    createShaderModule(vertCode, &vertShaderModule);
-    createShaderModule(fragCode, &fragShaderModule);
+    PipelineSet pipelines{std::make_shared<Pipeline>(device), std::make_shared<Pipeline>(device)};
+    createShaderModule(device, vertCode, &pipelines.meshes->vertShaderModule);
+    createShaderModule(device, fragCode, &pipelines.meshes->fragShaderModule);
 
-    VkPipelineShaderStageCreateInfo shaderStages[2];
-    shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    shaderStages[0].module = vertShaderModule;
-    shaderStages[0].pName = "main";
-    shaderStages[0].flags = 0;
-    shaderStages[0].pNext = nullptr;
-    shaderStages[0].pSpecializationInfo = nullptr;
-    shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shaderStages[1].module = fragShaderModule;
-    shaderStages[1].pName = "main";
-    shaderStages[1].flags = 0;
-    shaderStages[1].pNext = nullptr;
-    shaderStages[1].pSpecializationInfo = nullptr;
+    // TODO create shader modules for hair pipeline.
+
+    VkPipelineShaderStageCreateInfo shaderStagesMeshes[2];
+    VkPipelineShaderStageCreateInfo shaderStagesHair[2];
+    createShaderStageInfo(pipelines.meshes->vertShaderModule, pipelines.meshes->fragShaderModule, shaderStagesMeshes);
+    createShaderStageInfo(pipelines.hair->vertShaderModule, pipelines.hair->fragShaderModule, shaderStagesHair);
+
+    // TODO create vertexInputInfo for hair pipeline
 
     auto bindingDescriptions = Mesh::Vertex::getBindingDescriptions();
     auto attributeDescriptions = Mesh::Vertex::getAttributeDescriptions();
@@ -90,10 +80,11 @@ void Pipeline::createGraphicsPipeline(
     vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
     vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
 
+    // TODO: Repeat for hair pipeline
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pStages = shaderStagesMeshes;
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &configInfo.inputAssemblyInfo;
     pipelineInfo.pViewportState = &configInfo.viewportInfo;
@@ -110,18 +101,21 @@ void Pipeline::createGraphicsPipeline(
     pipelineInfo.basePipelineIndex = -1;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
+    // TODO: Modify to create 2 pipelines (meshes and hairs)
     if (vkCreateGraphicsPipelines(
             device.device(),
             VK_NULL_HANDLE,
             1,
             &pipelineInfo,
             nullptr,
-            &graphicsPipeline) != VK_SUCCESS) {
+            &pipelines.meshes->graphicsPipeline) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics pipeline");
     }
+
+    return pipelines;
 }
 
-void Pipeline::createShaderModule(const std::vector<char>& code, VkShaderModule* shaderModule) {
+void Pipeline::createShaderModule(Device& device, const std::vector<char>& code, VkShaderModule* shaderModule) {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();
@@ -130,6 +124,25 @@ void Pipeline::createShaderModule(const std::vector<char>& code, VkShaderModule*
     if (vkCreateShaderModule(device.device(), &createInfo, nullptr, shaderModule) != VK_SUCCESS) {
         throw std::runtime_error("failed to create shader module");
     }
+}
+
+void Pipeline::createShaderStageInfo(VkShaderModule& vertShader,
+                                     VkShaderModule& fragShader,
+                                     VkPipelineShaderStageCreateInfo shaderStages[]) {
+    shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaderStages[0].module = vertShader;
+    shaderStages[0].pName = "main";
+    shaderStages[0].flags = 0;
+    shaderStages[0].pNext = nullptr;
+    shaderStages[0].pSpecializationInfo = nullptr;
+    shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaderStages[1].module = fragShader;
+    shaderStages[1].pName = "main";
+    shaderStages[1].flags = 0;
+    shaderStages[1].pNext = nullptr;
+    shaderStages[1].pSpecializationInfo = nullptr;
 }
 
 void Pipeline::bind(VkCommandBuffer commandBuffer) {

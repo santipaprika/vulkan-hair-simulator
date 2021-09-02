@@ -47,7 +47,8 @@ class RenderSystem {
 
     Device &device;
 
-    std::unique_ptr<Pipeline> pipeline;
+    // std::unique_ptr<Pipeline> pipeline;
+    PipelineSet pipelines;
 
     VkDescriptorSetLayout descriptorSetLayout;
     VkPipelineLayout pipelineLayout;

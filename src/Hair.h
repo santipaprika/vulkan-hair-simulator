@@ -1,14 +1,19 @@
 #pragma once
 #include <cyHairFile.h>
 
-class Hair
-{
-private:
+namespace vkr {
+
+class Hair {
+   private:
     cyHairFile hair;
-    float* dirs;
-public:
+    float *dirs;
+
+   public:
     Hair(const char *filename);
     ~Hair();
 
-    void LoadHairModel( const char *filename, cyHairFile &hairfile, float *&dirs );
+    void loadHairModel(const char *filename, cyHairFile &hairfile, float *&dirs);
+    // void drawHairModel(const cyHairFile &hairfile, float *dirs);
 };
+
+}  // namespace vkr

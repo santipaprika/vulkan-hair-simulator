@@ -88,7 +88,7 @@ void RenderSystem::createPipeline(VkRenderPass renderPass) {
     Pipeline::defaultPipelineConfigInfo(pipelineConfig);
     pipelineConfig.renderPass = renderPass;
     pipelineConfig.pipelineLayout = pipelineLayout;
-    pipeline = std::make_unique<Pipeline>(
+    pipelines = Pipeline::createGraphicsPipelines(
         device,
         "../shaders/simple_shader.vert.spv",
         "../shaders/simple_shader.frag.spv",
@@ -205,7 +205,7 @@ void RenderSystem::createDescriptorSets() {
 }
 
 void RenderSystem::renderEntities(VkCommandBuffer commandBuffer, const Camera& camera) {
-    pipeline->bind(commandBuffer);
+    pipelines.meshes->bind(commandBuffer);
 
     auto projectionView = camera.getProjection() * camera.getView();
 

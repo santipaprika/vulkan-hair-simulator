@@ -14,6 +14,8 @@
 
 namespace vkr {
 
+struct PipelineSet;
+
 struct PipelineConfigInfo {
     PipelineConfigInfo(const PipelineConfigInfo&) = delete;
     PipelineConfigInfo& operator=(const PipelineConfigInfo&) = delete;
@@ -34,11 +36,7 @@ struct PipelineConfigInfo {
 
 class Pipeline {
    public:
-    Pipeline(
-        Device& device,
-        const std::string& vertFilepath,
-        const std::string& fragFilepath,
-        const PipelineConfigInfo& configInfo);
+    Pipeline(Device& device);
     ~Pipeline();
 
     Pipeline(const Pipeline&) = delete;
@@ -47,20 +45,28 @@ class Pipeline {
     void bind(VkCommandBuffer commandBuffer);
 
     static void defaultPipelineConfigInfo(PipelineConfigInfo& configInfo);
-
-   private:
-    static std::vector<char> readFile(const std::string& filepath);
-
-    void createGraphicsPipeline(
+    static PipelineSet createGraphicsPipelines(
+        Device& device,
         const std::string& vertFilepath,
         const std::string& fragFilepath,
         const PipelineConfigInfo& configInfo);
 
-    void createShaderModule(const std::vector<char>& code, VkShaderModule* shaderModule);
+   private:
+    static std::vector<char> readFile(const std::string& filepath);
+
+    static void createShaderModule(Device& device, const std::vector<char>& code, VkShaderModule* shaderModule);
+    static void createShaderStageInfo(VkShaderModule& vertShader, VkShaderModule& fragShader,
+                                      VkPipelineShaderStageCreateInfo shaderStages[]);
 
     Device& device;
-    VkPipeline graphicsPipeline;
-    VkShaderModule vertShaderModule;
-    VkShaderModule fragShaderModule;
+    VkPipeline graphicsPipeline{nullptr};
+    VkShaderModule vertShaderModule{nullptr};
+    VkShaderModule fragShaderModule{nullptr};
 };
+
+struct PipelineSet {
+    std::shared_ptr<Pipeline> meshes;
+    std::shared_ptr<Pipeline> hair;
+};
+
 }  // namespace vkr
