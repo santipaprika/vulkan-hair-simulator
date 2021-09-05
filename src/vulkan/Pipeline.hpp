@@ -16,9 +16,19 @@ namespace vkr {
 
 struct PipelineSet;
 
+struct ShaderPaths {
+    std::string vertFilepath;
+    std::string fragFilepath;
+};
+
+struct VertexInputDescriptions {
+    std::vector<VkVertexInputBindingDescription> bindingDescription;
+    std::vector<VkVertexInputAttributeDescription> attributeDescription;
+};
+
 struct PipelineConfigInfo {
-    PipelineConfigInfo(const PipelineConfigInfo&) = delete;
-    PipelineConfigInfo& operator=(const PipelineConfigInfo&) = delete;
+    // PipelineConfigInfo(const PipelineConfigInfo&) = delete;
+    // PipelineConfigInfo& operator=(const PipelineConfigInfo&) = delete;
 
     VkPipelineViewportStateCreateInfo viewportInfo;
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
@@ -45,11 +55,11 @@ class Pipeline {
     void bind(VkCommandBuffer commandBuffer);
 
     static void defaultPipelineConfigInfo(PipelineConfigInfo& configInfo);
-    static PipelineSet createGraphicsPipelines(
+    static std::unique_ptr<PipelineSet> createGraphicsPipelines(
         Device& device,
-        const std::string& vertFilepath,
-        const std::string& fragFilepath,
-        const PipelineConfigInfo& configInfo);
+        const std::vector<ShaderPaths>& shadersFilepaths,
+        const std::vector<PipelineConfigInfo>& configInfo,
+        std::vector<VertexInputDescriptions>& vertexInputDescriptions);
 
    private:
     static std::vector<char> readFile(const std::string& filepath);
@@ -67,6 +77,11 @@ class Pipeline {
 struct PipelineSet {
     std::shared_ptr<Pipeline> meshes;
     std::shared_ptr<Pipeline> hair;
+
+    PipelineSet(std::shared_ptr<Pipeline> meshes, std::shared_ptr<Pipeline> hair) {
+        this->meshes = meshes;
+        this->hair = hair;
+    }
 };
 
 }  // namespace vkr

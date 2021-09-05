@@ -15,10 +15,7 @@
 
 namespace vkr {
 
-Pipeline::Pipeline(Device& device)
-    : device{device} {
-    // createGraphicsPipeline(vertFilepath, fragFilepath, configInfo);
-}
+Pipeline::Pipeline(Device& device) : device{device} {}
 
 Pipeline::~Pipeline() {
     vkDestroyShaderModule(device.device(), vertShaderModule, nullptr);
@@ -43,74 +40,82 @@ std::vector<char> Pipeline::readFile(const std::string& filepath) {
     return buffer;
 }
 
-PipelineSet Pipeline::createGraphicsPipelines(Device& device,
-                                              const std::string& vertFilepath,
-                                              const std::string& fragFilepath,
-                                              const PipelineConfigInfo& configInfo) {
-    assert(
-        configInfo.pipelineLayout != VK_NULL_HANDLE &&
-        "Cannot create graphics pipeline: no pipelineLayout provided in configInfo");
-    assert(
-        configInfo.renderPass != VK_NULL_HANDLE &&
-        "Cannot create graphics pipeline: no renderPass provided in configInfo");
+std::unique_ptr<PipelineSet> Pipeline::createGraphicsPipelines(Device& device,
+                                                               const std::vector<ShaderPaths>& shadersFilepaths,
+                                                               const std::vector<PipelineConfigInfo>& configInfo,
+                                                               std::vector<VertexInputDescriptions>& vertexInputDescriptions) {
+    std::unique_ptr<PipelineSet> pipelines(new PipelineSet(std::make_shared<Pipeline>(device),
+                                                           std::make_shared<Pipeline>(device)));
+    std::vector<std::shared_ptr<Pipeline>> pipelinesVector = {pipelines->meshes, pipelines->hair};
 
-    auto vertCode = readFile(vertFilepath);
-    auto fragCode = readFile(fragFilepath);
+    std::vector<VkGraphicsPipelineCreateInfo> pipelinesInfo(pipelinesVector.size());
+    std::vector<VkPipeline> vkPipelines(pipelinesVector.size());
+    std::vector<VkPipelineVertexInputStateCreateInfo> pipelinesVertexInputInfos(pipelinesVector.size());
 
-    PipelineSet pipelines{std::make_shared<Pipeline>(device), std::make_shared<Pipeline>(device)};
-    createShaderModule(device, vertCode, &pipelines.meshes->vertShaderModule);
-    createShaderModule(device, fragCode, &pipelines.meshes->fragShaderModule);
+    // set info for each pipeline
+    for (int i = 0; i < pipelinesVector.size(); i++) {
+        auto* currentPipelineConfigInfo = &configInfo[i];
+        assert(
+            currentPipelineConfigInfo->pipelineLayout != VK_NULL_HANDLE &&
+            "Cannot create graphics pipeline: no pipelineLayout provided in configInfo");
+        assert(
+            currentPipelineConfigInfo->renderPass != VK_NULL_HANDLE &&
+            "Cannot create graphics pipeline: no renderPass provided in configInfo");
 
-    // TODO create shader modules for hair pipeline.
+        vkPipelines.push_back(pipelinesVector[i]->graphicsPipeline);
 
-    VkPipelineShaderStageCreateInfo shaderStagesMeshes[2];
-    VkPipelineShaderStageCreateInfo shaderStagesHair[2];
-    createShaderStageInfo(pipelines.meshes->vertShaderModule, pipelines.meshes->fragShaderModule, shaderStagesMeshes);
-    createShaderStageInfo(pipelines.hair->vertShaderModule, pipelines.hair->fragShaderModule, shaderStagesHair);
+        auto vertCode = readFile(shadersFilepaths[i].vertFilepath);
+        auto fragCode = readFile(shadersFilepaths[i].fragFilepath);
 
-    // TODO create vertexInputInfo for hair pipeline
+        createShaderModule(device, vertCode, &pipelinesVector[i]->vertShaderModule);
+        createShaderModule(device, fragCode, &pipelinesVector[i]->fragShaderModule);
 
-    auto bindingDescriptions = Mesh::Vertex::getBindingDescriptions();
-    auto attributeDescriptions = Mesh::Vertex::getAttributeDescriptions();
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexAttributeDescriptionCount =
-        static_cast<uint32_t>(attributeDescriptions.size());
-    vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
-    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
-    vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
+        VkPipelineShaderStageCreateInfo shaderStages[2];
+        createShaderStageInfo(pipelinesVector[i]->vertShaderModule, pipelinesVector[i]->fragShaderModule, shaderStages);
 
-    // TODO: Repeat for hair pipeline
-    VkGraphicsPipelineCreateInfo pipelineInfo{};
-    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStagesMeshes;
-    pipelineInfo.pVertexInputState = &vertexInputInfo;
-    pipelineInfo.pInputAssemblyState = &configInfo.inputAssemblyInfo;
-    pipelineInfo.pViewportState = &configInfo.viewportInfo;
-    pipelineInfo.pRasterizationState = &configInfo.rasterizationInfo;
-    pipelineInfo.pMultisampleState = &configInfo.multisampleInfo;
-    pipelineInfo.pColorBlendState = &configInfo.colorBlendInfo;
-    pipelineInfo.pDepthStencilState = &configInfo.depthStencilInfo;
-    pipelineInfo.pDynamicState = &configInfo.dynamicStateInfo;
+        auto* vertexInputDescription = &vertexInputDescriptions[i];
+        auto* vertexInputInfo = &pipelinesVertexInputInfos[i];
+        vertexInputInfo->sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        vertexInputInfo->vertexAttributeDescriptionCount =
+            static_cast<uint32_t>(vertexInputDescription->attributeDescription.size());
+        vertexInputInfo->vertexBindingDescriptionCount = static_cast<uint32_t>(vertexInputDescription->bindingDescription.size());
+        vertexInputInfo->pVertexAttributeDescriptions = vertexInputDescription->attributeDescription.data();
+        vertexInputInfo->pVertexBindingDescriptions = vertexInputDescription->bindingDescription.data();
 
-    pipelineInfo.layout = configInfo.pipelineLayout;
-    pipelineInfo.renderPass = configInfo.renderPass;
-    pipelineInfo.subpass = configInfo.subpass;
+        VkGraphicsPipelineCreateInfo* pipelineInfo = &pipelinesInfo[i];
+        pipelineInfo->sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineInfo->stageCount = 2;
+        pipelineInfo->pStages = shaderStages;
 
-    pipelineInfo.basePipelineIndex = -1;
-    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+        pipelineInfo->pVertexInputState = vertexInputInfo;
+        pipelineInfo->pInputAssemblyState = &currentPipelineConfigInfo->inputAssemblyInfo;
+        pipelineInfo->pViewportState = &currentPipelineConfigInfo->viewportInfo;
+        pipelineInfo->pRasterizationState = &currentPipelineConfigInfo->rasterizationInfo;
+        pipelineInfo->pMultisampleState = &currentPipelineConfigInfo->multisampleInfo;
+        pipelineInfo->pColorBlendState = &currentPipelineConfigInfo->colorBlendInfo;
+        pipelineInfo->pDepthStencilState = &currentPipelineConfigInfo->depthStencilInfo;
+        pipelineInfo->pDynamicState = &currentPipelineConfigInfo->dynamicStateInfo;
 
-    // TODO: Modify to create 2 pipelines (meshes and hairs)
+        pipelineInfo->layout = currentPipelineConfigInfo->pipelineLayout;
+        pipelineInfo->renderPass = currentPipelineConfigInfo->renderPass;
+        pipelineInfo->subpass = currentPipelineConfigInfo->subpass;
+
+        pipelineInfo->basePipelineIndex = -1;
+        pipelineInfo->basePipelineHandle = VK_NULL_HANDLE;
+    }
+
     if (vkCreateGraphicsPipelines(
             device.device(),
             VK_NULL_HANDLE,
-            1,
-            &pipelineInfo,
+            2,
+            pipelinesInfo.data(),
             nullptr,
-            &pipelines.meshes->graphicsPipeline) != VK_SUCCESS) {
+            vkPipelines.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics pipeline");
     }
+
+    pipelines->meshes->graphicsPipeline = vkPipelines[0];
+    pipelines->hair->graphicsPipeline = vkPipelines[1];
 
     return pipelines;
 }

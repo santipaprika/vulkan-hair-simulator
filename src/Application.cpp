@@ -10,7 +10,7 @@
 #include <ImGuiHelper.hpp>
 #include <InputController.hpp>
 #include <RenderSystem.hpp>
-#include <Hair.h>
+#include <Hair.hpp>
 
 // libs
 #define GLM_FORCE_RADIANS
