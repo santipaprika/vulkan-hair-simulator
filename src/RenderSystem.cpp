@@ -91,7 +91,7 @@ void RenderSystem::createPipeline(VkRenderPass renderPass) {
 
     PipelineConfigInfo hairPipelineConfig = pipelineConfig;
     hairPipelineConfig.inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-    // hairPipelineConfig.inputAssemblyInfo.primitiveRestartEnable = VK_TRUE;
+    hairPipelineConfig.inputAssemblyInfo.primitiveRestartEnable = VK_TRUE;
 
     ShaderPaths basicShaderPaths;
     basicShaderPaths.fragFilepath = "../shaders/basic.frag.spv";
