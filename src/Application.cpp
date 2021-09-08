@@ -11,6 +11,7 @@
 #include <InputController.hpp>
 #include <RenderSystem.hpp>
 #include <Hair.hpp>
+#include <Utils.hpp>
 
 // libs
 #define GLM_FORCE_RADIANS
@@ -118,6 +119,7 @@ void Application::loadEntities() {
     hairEntity.material = material;
     hairEntity.transform.translation = {0.f, 2.f, 2.5f};
     hairEntity.transform.scale = {0.03f, 0.03f, 0.03f};
+    hairEntity.transform.rotation = {PI_2,PI_2,0};
 
     entities.push_back(std::move(hairEntity));
 }

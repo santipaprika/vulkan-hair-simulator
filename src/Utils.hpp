@@ -8,7 +8,13 @@
 
 #include <functional>
 
+
 namespace vkr {
+
+#define PI 3.14159265358979323846
+
+// Equivalent to PI/2
+#define PI_2 1.57079632679489661923
 
 // from: https://stackoverflow.com/a/57595105
 template <typename T, typename... Rest>

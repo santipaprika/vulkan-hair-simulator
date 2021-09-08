@@ -64,6 +64,7 @@ void Hair::loadHairModel(const char *filename, cyHairFile &hairfile, float *&dir
     unsigned short defaultSegments = hairfile.GetHeader().d_segments;
     float *colorArray = hairfile.GetColorsArray();
     glm::vec3 defaultColor(hairfile.GetHeader().d_color[0], hairfile.GetHeader().d_color[1], hairfile.GetHeader().d_color[2]);
+    
     int pointIdx = 0;
     int p1 = 0, p2 = 0, p3 = 0;
     for (int i = 0; i < hairCount; i++) {
