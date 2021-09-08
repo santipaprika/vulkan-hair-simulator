@@ -51,6 +51,8 @@ std::unique_ptr<PipelineSet> Pipeline::createGraphicsPipelines(Device& device,
     std::vector<VkGraphicsPipelineCreateInfo> pipelinesInfo(pipelinesVector.size());
     std::vector<VkPipeline> vkPipelines(pipelinesVector.size());
     std::vector<VkPipelineVertexInputStateCreateInfo> pipelinesVertexInputInfos(pipelinesVector.size());
+    std::vector<std::vector<VkPipelineShaderStageCreateInfo>> shaderStages(pipelinesVector.size());
+    for (auto shaderStage : shaderStages) { shaderStage.resize(2); }
 
     // set info for each pipeline
     for (int i = 0; i < pipelinesVector.size(); i++) {
@@ -70,8 +72,7 @@ std::unique_ptr<PipelineSet> Pipeline::createGraphicsPipelines(Device& device,
         createShaderModule(device, vertCode, &pipelinesVector[i]->vertShaderModule);
         createShaderModule(device, fragCode, &pipelinesVector[i]->fragShaderModule);
 
-        VkPipelineShaderStageCreateInfo shaderStages[2];
-        createShaderStageInfo(pipelinesVector[i]->vertShaderModule, pipelinesVector[i]->fragShaderModule, shaderStages);
+        createShaderStageInfo(pipelinesVector[i]->vertShaderModule, pipelinesVector[i]->fragShaderModule, shaderStages[i]);
 
         auto* vertexInputDescription = &vertexInputDescriptions[i];
         auto* vertexInputInfo = &pipelinesVertexInputInfos[i];
@@ -85,7 +86,7 @@ std::unique_ptr<PipelineSet> Pipeline::createGraphicsPipelines(Device& device,
         VkGraphicsPipelineCreateInfo* pipelineInfo = &pipelinesInfo[i];
         pipelineInfo->sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipelineInfo->stageCount = 2;
-        pipelineInfo->pStages = shaderStages;
+        pipelineInfo->pStages = shaderStages[i].data();
 
         pipelineInfo->pVertexInputState = vertexInputInfo;
         pipelineInfo->pInputAssemblyState = &currentPipelineConfigInfo->inputAssemblyInfo;
@@ -133,7 +134,9 @@ void Pipeline::createShaderModule(Device& device, const std::vector<char>& code,
 
 void Pipeline::createShaderStageInfo(VkShaderModule& vertShader,
                                      VkShaderModule& fragShader,
-                                     VkPipelineShaderStageCreateInfo shaderStages[]) {
+                                     std::vector<VkPipelineShaderStageCreateInfo> &shaderStages) {
+    // Vertex shader
+    shaderStages.push_back({});
     shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     shaderStages[0].module = vertShader;
@@ -141,6 +144,9 @@ void Pipeline::createShaderStageInfo(VkShaderModule& vertShader,
     shaderStages[0].flags = 0;
     shaderStages[0].pNext = nullptr;
     shaderStages[0].pSpecializationInfo = nullptr;
+
+    // Fragment shader
+    shaderStages.push_back({});
     shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     shaderStages[1].module = fragShader;

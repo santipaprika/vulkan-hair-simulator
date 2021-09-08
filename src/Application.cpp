@@ -63,7 +63,7 @@ void Application::run() {
         camera.setViewYXZ(viewerObject.transform.translation, viewerObject.transform.rotation);
 
         float aspect = renderer.getAspectRatio();
-        camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 10.f);
+        camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
         if (auto commandBuffer = renderer.beginFrame()) {
             renderer.beginCommandBuffer(commandBuffer);
@@ -100,7 +100,7 @@ void Application::loadEntities() {
     flatVase.mesh = mesh;
     flatVase.material = material;
     flatVase.transform.translation = {-.5f, .5f, 2.5f};
-    flatVase.transform.scale = {3.f, 1.5f, 3.f};
+    flatVase.transform.scale = {1.5f, 1.5f, 1.5f};
     entities.push_back(std::move(flatVase));
 
     mesh = Mesh::createModelFromFile(device, (models_path + "/smooth_vase.obj").c_str());
@@ -108,10 +108,18 @@ void Application::loadEntities() {
     smoothVase.mesh = mesh;
     smoothVase.material = material;
     smoothVase.transform.translation = {.5f, .5f, 2.5f};
-    smoothVase.transform.scale = {3.f, 1.5f, 3.f};
+    smoothVase.transform.scale = {1.5f, 1.5f, 1.5f};
     entities.push_back(std::move(smoothVase));
 
-    Hair hair( (models_path + "/wWavy.hair").c_str() );
+    std::shared_ptr<Hair> hair = std::make_shared<Hair>( device, (models_path + "/wWavy.hair").c_str() );
+    auto hairEntity = Entity::createEntity();
+    hairEntity.hair = hair;
+    // TO DO: Might not have a material, support multiple descriptor set layouts!
+    hairEntity.material = material;
+    hairEntity.transform.translation = {0.f, 2.f, 2.5f};
+    hairEntity.transform.scale = {0.03f, 0.03f, 0.03f};
+
+    entities.push_back(std::move(hairEntity));
 }
 
 }  // namespace vkr

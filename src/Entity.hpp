@@ -7,6 +7,7 @@
 #pragma once
 
 #include <Mesh.hpp>
+#include <Hair.hpp>
 #include <Material.hpp>
 #include <Buffer.hpp>
 
@@ -48,6 +49,7 @@ class Entity {
     id_t getId() { return id; }
 
     std::shared_ptr<Mesh> mesh{};
+    std::shared_ptr<Hair> hair{};
     std::shared_ptr<Material> material{};
     glm::vec3 color{};
     TransformComponent transform{};

@@ -1,36 +1,17 @@
 #include <Hair.hpp>
+#include <Utils.hpp>
 
 namespace vkr {
-std::vector<VkVertexInputBindingDescription> Hair::Vertex::getBindingDescriptions() {
-    std::vector<VkVertexInputBindingDescription> bindingDescriptions(1);
-    bindingDescriptions[0].binding = 0;
-    bindingDescriptions[0].stride = sizeof(Vertex);
-    bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    return bindingDescriptions;
-}
 
-std::vector<VkVertexInputAttributeDescription> Hair::Vertex::getAttributeDescriptions() 
-{
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-
-    attributeDescriptions.push_back(
-        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position)});
-    attributeDescriptions.push_back(
-        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)});
-    attributeDescriptions.push_back(
-        {2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal)});
-    // attributeDescriptions.push_back(
-    //     {3, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, uv)});
-
-    return attributeDescriptions;
-}
-
-Hair::Hair(const char *filename) {
+Hair::Hair(Device &device, const char *filename) : device{device} {
     loadHairModel(filename, this->hair, dirs);
+    createVertexBuffers(strandsVertices);
 }
 
 Hair::~Hair() {
     delete[] dirs;
+    vkDestroyBuffer(device.device(), vertexBuffer, nullptr);
+    vkFreeMemory(device.device(), vertexBufferMemory, nullptr);
 }
 
 void Hair::loadHairModel(const char *filename, cyHairFile &hairfile, float *&dirs) {
@@ -66,53 +47,93 @@ void Hair::loadHairModel(const char *filename, cyHairFile &hairfile, float *&dir
             printf("Hair file \"%s\" loaded.\n", filename);
     }
     int hairCount = hairfile.GetHeader().hair_count;
-    int pointCount = hairfile.GetHeader().point_count;
+    vertexCount = hairfile.GetHeader().point_count;
     printf("Number of hair strands = %d\n", hairCount);
-    printf("Number of hair points = %d\n", pointCount);
+    printf("Number of hair points = %d\n", vertexCount);
 
     // Allocate space for directions
-    dirs = (float *)malloc(sizeof(float) * pointCount * 3);
+    dirs = (float *)malloc(sizeof(float) * vertexCount * 3);
     // Compute directions
     if (hairfile.FillDirectionArray(dirs) == 0) {
         printf("Error: Cannot compute hair directions!\n");
     }
+
+    // Fill strand array with vertices
+    float *pointsArray = hairfile.GetPointsArray();
+    unsigned short *segmentsArray = hairfile.GetSegmentsArray();
+    unsigned short defaultSegments = hairfile.GetHeader().d_segments;
+    float *colorArray = hairfile.GetColorsArray();
+    glm::vec3 defaultColor(hairfile.GetHeader().d_color[0], hairfile.GetHeader().d_color[1], hairfile.GetHeader().d_color[2]);
+    int pointIdx = 0;
+    int p1 = 0, p2 = 0, p3 = 0;
+    for (int i = 0; i < hairCount; i++) {
+        short numSegments = segmentsArray ? segmentsArray[i] : defaultSegments;
+        for (short j = 0; j < numSegments; j++) {
+            p1 = pointIdx++, p2 = pointIdx++, p3 = pointIdx++;
+            glm::vec3 point(pointsArray[p1], pointsArray[p2], pointsArray[p3]);
+            glm::vec3 direction(dirs[p1], dirs[p2], dirs[p3]);
+            glm::vec3 color = colorArray ? glm::vec3(colorArray[p1], colorArray[p2], colorArray[p3]) : defaultColor;
+
+            strandsVertices.push_back(Vertex{point, color, direction});
+        }
+    }
 }
 
-// void Hair::drawHairModel(const cyHairFile &hairfile, float *dirs) {
-//     // Set point array
-//     glVertexPointer(3, GL_FLOAT, 0, hairfile.GetPointsArray());
-//     glEnableClientState(GL_VERTEX_ARRAY);
-//     // Set normal array
-//     glNormalPointer(GL_FLOAT, 0, dirs);
-//     glEnableClientState(GL_NORMAL_ARRAY);
-//     // Set color array (if exists)
-//     float *colors = hairfile.GetColorsArray();
-//     if (colors) {
-//         glColorPointer(3, GL_FLOAT, 0, colors);
-//         glEnableClientState(GL_COLOR_ARRAY);
-//     }
-//     // Draw arrays
-//     int pointIndex = 0;
-//     int hairCount = hairfile.GetHeader().hair_count;
-//     const unsigned short *segments = hairfile.GetSegmentsArray();
-//     if (segments) {
-//         // If segments array exists
-//         for (int hairIndex = 0; hairIndex < hairCount; hairIndex++) {
-//             glDrawArrays(GL_LINE_STRIP, pointIndex, segments[hairIndex] + 1);
-//             pointIndex += segments[hairIndex] + 1;
-//         }
-//     } else {
-//         // If segments array does not exist, use default segment count
-//         int dsegs = hairfile.GetHeader().d_segments;
-//         for (int hairIndex = 0; hairIndex < hairCount; hairIndex++) {
-//             glDrawArrays(GL_LINE_STRIP, pointIndex, dsegs + 1);
-//             pointIndex += dsegs + 1;
-//         }
-//     }
-//     // Disable arrays
-//     glDisableClientState(GL_VERTEX_ARRAY);
-//     glDisableClientState(GL_NORMAL_ARRAY);
-//     glDisableClientState(GL_COLOR_ARRAY);
-// }
+void Hair::createVertexBuffers(const std::vector<Vertex> &vertices) {
+    VkDeviceSize bufferSize = sizeof(Vertex) * static_cast<uint32_t>(vertices.size());
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    device.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                        stagingBuffer, stagingBufferMemory);
+
+    void *data;
+    vkMapMemory(device.device(), stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));
+    vkUnmapMemory(device.device(), stagingBufferMemory);
+
+    device.createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+
+    device.copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+    vkDestroyBuffer(device.device(), stagingBuffer, nullptr);
+    vkFreeMemory(device.device(), stagingBufferMemory, nullptr);
+}
+
+void Hair::draw(VkCommandBuffer commandBuffer) {
+    vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
+}
+
+void Hair::bind(VkCommandBuffer commandBuffer) {
+    VkBuffer buffers[] = {vertexBuffer};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
+}
+
+std::vector<VkVertexInputBindingDescription> Hair::Vertex::getBindingDescriptions() {
+    std::vector<VkVertexInputBindingDescription> bindingDescriptions(1);
+    bindingDescriptions[0].binding = 0;
+    bindingDescriptions[0].stride = sizeof(Vertex);
+    bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    return bindingDescriptions;
+}
+
+std::vector<VkVertexInputAttributeDescription> Hair::Vertex::getAttributeDescriptions() {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
+
+    attributeDescriptions.push_back(
+        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position)});
+    attributeDescriptions.push_back(
+        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)});
+    attributeDescriptions.push_back(
+        {2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, direction)});
+
+    return attributeDescriptions;
+}
 
 }  // namespace vkr

@@ -9,11 +9,6 @@ layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec3 normalWS;
 layout(location = 2) out vec2 fragTexCoord;
 
-// layout(push_constant) uniform Push {
-//     mat4 transform; // projection * view * model
-//     mat4 normalMatrix;
-// } push;
-
 layout (binding = 0) uniform UniformBufferObject {
     mat4 transform;
     mat4 normalMatrix;

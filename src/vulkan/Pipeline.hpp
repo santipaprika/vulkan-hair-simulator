@@ -66,7 +66,7 @@ class Pipeline {
 
     static void createShaderModule(Device& device, const std::vector<char>& code, VkShaderModule* shaderModule);
     static void createShaderStageInfo(VkShaderModule& vertShader, VkShaderModule& fragShader,
-                                      VkPipelineShaderStageCreateInfo shaderStages[]);
+                                      std::vector<VkPipelineShaderStageCreateInfo> &shaderStages);
 
     Device& device;
     VkPipeline graphicsPipeline{nullptr};
