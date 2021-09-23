@@ -10,6 +10,7 @@
 #include <Device.hpp>
 #include <Entity.hpp>
 #include <Pipeline.hpp>
+#include <FrameInfo.hpp>
 
 // std
 #include <memory>
@@ -32,9 +33,7 @@ class RenderSystem {
 
     void setupDescriptors();
 
-    void renderEntities(
-        VkCommandBuffer commandBuffer,
-        const Camera &camera);
+    void renderEntities(FrameInfo frameInfo);
 
    private:
     void createDescriptorSetLayout();

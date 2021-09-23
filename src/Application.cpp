@@ -12,6 +12,7 @@
 #include <RenderSystem.hpp>
 #include <Hair.hpp>
 #include <Utils.hpp>
+#include <FrameInfo.hpp>
 
 // libs
 #define GLM_FORCE_RADIANS
@@ -67,10 +68,12 @@ void Application::run() {
         camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
         if (auto commandBuffer = renderer.beginFrame()) {
+            FrameInfo frameInfo{renderer.getFrameIndex(), frameTime, commandBuffer, camera};
+
             renderer.beginCommandBuffer(commandBuffer);
             renderer.beginSwapChainRenderPass(commandBuffer);
 
-            renderSystem.renderEntities(commandBuffer, camera);
+            renderSystem.renderEntities(frameInfo);
 
             renderer.endSwapChainRenderPass(commandBuffer);
             renderer.endCommandBuffer(commandBuffer);

@@ -32,6 +32,11 @@ struct TransformComponent {
     glm::mat3 normalMatrix();
 };
 
+struct EntityUBO {
+    glm::mat4 transform;
+    glm::mat4 normalMatrix;
+};
+
 class Entity {
    public:
     using id_t = unsigned int;
@@ -55,7 +60,7 @@ class Entity {
     TransformComponent transform{};
     
     VkDescriptorSet descriptorSet;
-    Buffer uniformBuffer;
+    std::unique_ptr<Buffer> uniformBuffer = nullptr;
 
    private:
     Entity(id_t objId) : id{objId} {}

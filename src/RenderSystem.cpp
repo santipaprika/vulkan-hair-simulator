@@ -25,11 +25,6 @@ struct SimplePushConstantData {
     float brightness;
 };
 
-struct UniformBufferObject {
-    glm::mat4 transform;
-    glm::mat4 normalMatrix;
-};
-
 RenderSystem::RenderSystem(Device& device, VkRenderPass renderPass, std::vector<Entity>& entities)
     : device{device}, entities{entities} {
     createUniformBuffers();
@@ -58,7 +53,6 @@ RenderSystem::~RenderSystem() {
     vkDestroyDescriptorPool(device.device(), descriptorPool, nullptr);
 
     for (auto& entity : entities) {
-        entity.uniformBuffer.destroy();
         entity.material->getAlbedo()->destroy();
     }
 }
@@ -145,17 +139,13 @@ void RenderSystem::createDescriptorSetLayout() {
 }
 
 void RenderSystem::createUniformBuffers() {
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+    VkDeviceSize bufferSize = sizeof(EntityUBO);
 
     for (auto& entity : entities) {
-        device.createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                            entity.uniformBuffer.buffer, entity.uniformBuffer.memory);
-
-        entity.uniformBuffer.device = device.device();
-        entity.uniformBuffer.map(sizeof(UniformBufferObject));
-        memcpy(entity.uniformBuffer.mapped, &entity.uniformBuffer, sizeof(entity.uniformBuffer));
-
-        entity.uniformBuffer.setupDescriptor(bufferSize);
+        entity.uniformBuffer = std::make_unique<Buffer>(device, bufferSize, SwapChain::MAX_FRAMES_IN_FLIGHT,
+                                                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                                                        device.properties.limits.minUniformBufferOffsetAlignment);
+        entity.uniformBuffer->map();
     }
 }
 
@@ -206,39 +196,38 @@ void RenderSystem::createDescriptorSets() {
         descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptorWrites[0].descriptorCount = 1;
 
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = entity.uniformBuffer.buffer;
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(UniformBufferObject);
-
-        descriptorWrites[0].pBufferInfo = &entity.uniformBuffer.descriptorInfo;
+        descriptorWrites[0].pBufferInfo = &entity.uniformBuffer->descriptorInfo(sizeof(EntityUBO));
 
         // Binding 1: Object texture
         // if (entity.material && entity.material->hasAlbedo()) {
-            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[1].dstSet = entity.descriptorSet;
-            descriptorWrites[1].dstBinding = 1;
-            descriptorWrites[1].dstArrayElement = 0;
-            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrites[1].descriptorCount = 1;
+        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[1].dstSet = entity.descriptorSet;
+        descriptorWrites[1].dstBinding = 1;
+        descriptorWrites[1].dstArrayElement = 0;
+        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrites[1].descriptorCount = 1;
 
-            descriptorWrites[1].pImageInfo = &entity.material->getAlbedo()->getDescriptorInfo();
+        descriptorWrites[1].pImageInfo = &entity.material->getAlbedo()->getDescriptorInfo();
         // }
         vkUpdateDescriptorSets(device.device(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
 }
 
-void RenderSystem::renderEntities(VkCommandBuffer commandBuffer, const Camera& camera) {
-    auto projectionView = camera.getProjection() * camera.getView();
+void RenderSystem::renderEntities(FrameInfo frameInfo) {
+    auto projectionView = frameInfo.camera.getProjection() * frameInfo.camera.getView();
+    
+    VkCommandBuffer commandBuffer = frameInfo.commandBuffer;
 
+    // TRIANGULAR MESHES
     pipelines->meshes->bind(commandBuffer);
     for (auto& entity : entities) {
         if (!entity.mesh) continue;
 
         auto modelMatrix = entity.transform.mat4();
-        UniformBufferObject entityUBO = {projectionView * modelMatrix, entity.transform.normalMatrix()};
+        EntityUBO entityUBO = {projectionView * modelMatrix, entity.transform.normalMatrix()};
 
-        memcpy(entity.uniformBuffer.mapped, &entityUBO, sizeof(entityUBO));
+        entity.uniformBuffer->writeToIndex(&entityUBO, frameInfo.frameIndex);
+        entity.uniformBuffer->flushIndex(frameInfo.frameIndex);
 
         SimplePushConstantData push{0.1f};
         vkCmdPushConstants(
@@ -254,14 +243,16 @@ void RenderSystem::renderEntities(VkCommandBuffer commandBuffer, const Camera& c
         entity.mesh->draw(commandBuffer);
     }
 
+    // HAIR (LINES)
     pipelines->hair->bind(commandBuffer);
     for (auto& entity : entities) {
         if (!entity.hair) continue;
 
         auto modelMatrix = entity.transform.mat4();
-        UniformBufferObject entityUBO = {projectionView * modelMatrix, entity.transform.normalMatrix()};
+        EntityUBO entityUBO = {projectionView * modelMatrix, entity.transform.normalMatrix()};
 
-        memcpy(entity.uniformBuffer.mapped, &entityUBO, sizeof(entityUBO));
+        entity.uniformBuffer->writeToIndex(&entityUBO, frameInfo.frameIndex);
+        entity.uniformBuffer->flushIndex(frameInfo.frameIndex);
 
         SimplePushConstantData push{0.1f};
         vkCmdPushConstants(
