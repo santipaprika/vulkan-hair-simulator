@@ -140,12 +140,21 @@ void RenderSystem::createDescriptorSetLayout() {
 
 void RenderSystem::createUniformBuffers() {
     VkDeviceSize bufferSize = sizeof(EntityUBO);
+    VkDeviceSize lightBufferSize = sizeof(EntityUBO);
 
     for (auto& entity : entities) {
         entity.uniformBuffer = std::make_unique<Buffer>(device, bufferSize, SwapChain::MAX_FRAMES_IN_FLIGHT,
                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                                                         device.properties.limits.minUniformBufferOffsetAlignment);
         entity.uniformBuffer->map();
+
+        // Create light specific UBO
+        if (entity.light) {
+            entity.light->uniformBuffer = std::make_unique<Buffer>(device, lightBufferSize, SwapChain::MAX_FRAMES_IN_FLIGHT,
+                                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                                                                   device.properties.limits.minUniformBufferOffsetAlignment);
+            entity.light->uniformBuffer->map();
+        }
     }
 }
 
@@ -209,13 +218,17 @@ void RenderSystem::createDescriptorSets() {
 
         descriptorWrites[1].pImageInfo = &entity.material->getAlbedo()->getDescriptorInfo();
         // }
+
+        // Binding 2: Lights
+        
+        
         vkUpdateDescriptorSets(device.device(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
 }
 
 void RenderSystem::renderEntities(FrameInfo frameInfo) {
     auto projectionView = frameInfo.camera.getProjection() * frameInfo.camera.getView();
-    
+
     VkCommandBuffer commandBuffer = frameInfo.commandBuffer;
 
     // TRIANGULAR MESHES
@@ -224,7 +237,7 @@ void RenderSystem::renderEntities(FrameInfo frameInfo) {
         if (!entity.mesh) continue;
 
         auto modelMatrix = entity.transform.mat4();
-        EntityUBO entityUBO = {projectionView * modelMatrix, entity.transform.normalMatrix()};
+        EntityUBO entityUBO = {projectionView, modelMatrix, entity.transform.normalMatrix(), frameInfo.camera.getPosition()};
 
         entity.uniformBuffer->writeToIndex(&entityUBO, frameInfo.frameIndex);
         entity.uniformBuffer->flushIndex(frameInfo.frameIndex);
@@ -249,7 +262,7 @@ void RenderSystem::renderEntities(FrameInfo frameInfo) {
         if (!entity.hair) continue;
 
         auto modelMatrix = entity.transform.mat4();
-        EntityUBO entityUBO = {projectionView * modelMatrix, entity.transform.normalMatrix()};
+        EntityUBO entityUBO = {projectionView, modelMatrix, entity.transform.normalMatrix(), frameInfo.camera.getPosition()};
 
         entity.uniformBuffer->writeToIndex(&entityUBO, frameInfo.frameIndex);
         entity.uniformBuffer->flushIndex(frameInfo.frameIndex);

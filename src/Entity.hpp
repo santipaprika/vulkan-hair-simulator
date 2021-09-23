@@ -6,10 +6,11 @@
 
 #pragma once
 
-#include <Mesh.hpp>
-#include <Hair.hpp>
-#include <Material.hpp>
 #include <Buffer.hpp>
+#include <Hair.hpp>
+#include <Light.hpp>
+#include <Material.hpp>
+#include <Mesh.hpp>
 
 // libs
 #include <glm/gtc/matrix_transform.hpp>
@@ -33,8 +34,10 @@ struct TransformComponent {
 };
 
 struct EntityUBO {
-    glm::mat4 transform;
+    glm::mat4 projectionView;
+    glm::mat4 model;
     glm::mat4 normalMatrix;
+    glm::vec3 camPos;
 };
 
 class Entity {
@@ -53,13 +56,17 @@ class Entity {
 
     id_t getId() { return id; }
 
+    TransformComponent transform{};
+
+    // COMPONENTS (Might be a vector?)
     std::shared_ptr<Mesh> mesh{};
     std::shared_ptr<Hair> hair{};
     std::shared_ptr<Material> material{};
-    glm::vec3 color{};
-    TransformComponent transform{};
-    
+    std::shared_ptr<Light> light{};
+
     VkDescriptorSet descriptorSet;
+    
+    // Transform specific uniform buffer
     std::unique_ptr<Buffer> uniformBuffer = nullptr;
 
    private:

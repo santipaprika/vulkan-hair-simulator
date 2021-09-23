@@ -10,12 +10,15 @@ layout(location = 1) out vec3 normalWS;
 layout(location = 2) out vec2 fragTexCoord;
 
 layout (binding = 0) uniform UniformBufferObject {
-    mat4 transform;
+    mat4 projectionView;
+    mat4 model;
     mat4 normalMatrix;
+    vec3 camPos;
 } ubo;
 
 void main() {
-    gl_Position = ubo.transform * vec4(position, 1.0);
+    vec4 positionWS = ubo.model * vec4(position, 1.0);
+    gl_Position = ubo.projectionView * positionWS;
 
     normalWS = normalize(mat3(ubo.normalMatrix) * normal);
     fragColor = color;

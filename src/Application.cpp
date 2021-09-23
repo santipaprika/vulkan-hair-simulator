@@ -115,9 +115,8 @@ void Application::loadEntities() {
     smoothVase.transform.scale = {1.5f, 1.5f, 1.5f};
     entities.push_back(std::move(smoothVase));
 
-    std::shared_ptr<Hair> hair = std::make_shared<Hair>( device, (models_path + "/wWavy.hair").c_str() );
     auto hairEntity = Entity::createEntity();
-    hairEntity.hair = hair;
+    hairEntity.hair = std::make_shared<Hair>( device, (models_path + "/wWavy.hair").c_str() );;
     // TO DO: Might not have a material, support multiple descriptor set layouts!
     hairEntity.material = material;
     hairEntity.transform.translation = {0.f, 2.f, 2.5f};
@@ -125,6 +124,14 @@ void Application::loadEntities() {
     hairEntity.transform.rotation = {PI_2,PI_2,0};
 
     entities.push_back(std::move(hairEntity));
+
+    auto mainLight = Entity::createEntity();
+    Light light {1.f, glm::vec3{1.f, 1.f, 1.f}};
+    mainLight.light = std::make_shared<Light>(1.f, glm::vec3(1.f,1.f,1.f));
+    mainLight.transform.translation = {0.f, 2.f, 0.f};
+    mainLight.transform.rotation = {PI_2,PI_2,0};
+
+    lights.push_back(std::move(mainLight));
 }
 
 }  // namespace vkr

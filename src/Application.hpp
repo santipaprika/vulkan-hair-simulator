@@ -24,8 +24,8 @@ class Application {
     Application();
     ~Application();
 
-    Application(const Application &) = delete;
-    Application &operator=(const Application &) = delete;
+    Application(const Application&) = delete;
+    Application& operator=(const Application&) = delete;
 
     Device& getDevice() { return device; }
     Window& getWindow() { return window; }
@@ -41,7 +41,7 @@ class Application {
     Renderer renderer{window, device};
 
     std::vector<Entity> entities;
+    std::vector<Entity> lights;
     std::vector<Texture> textures;
-
 };
 }  // namespace vkr
