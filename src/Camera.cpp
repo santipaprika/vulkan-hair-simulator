@@ -85,6 +85,8 @@ void Camera::setViewYXZ(glm::vec3 position, glm::vec3 rotation) {
 
 void Camera::update(TransformComponent viewerObjectTransform, float aspect) {
     setViewYXZ(viewerObjectTransform.translation, viewerObjectTransform.rotation);
+    invViewMatrix = glm::inverse(viewMatrix);
+
     setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
     skybox.transform.translation = getPosition();
 }
@@ -99,10 +101,5 @@ void Camera::loadSkybox(Device& device) {
 
     skyboxEnabled = true;
 }
-
-// void Camera::enableSkybox(bool enable) 
-// {
-//     skyboxEnabled = enable;
-// }
 
 }  // namespace vkr

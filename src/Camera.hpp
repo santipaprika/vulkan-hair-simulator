@@ -28,7 +28,7 @@ class Camera {
 
     const glm::mat4& getProjection() const { return projectionMatrix; }
     const glm::mat4& getView() const { return viewMatrix; }
-    glm::vec3 getPosition() { return glm::vec3{viewMatrix[3][0], viewMatrix[3][1], viewMatrix[3][2]}; }
+    glm::vec3 getPosition() { return glm::vec3{invViewMatrix[3][0], invViewMatrix[3][1], invViewMatrix[3][2]}; }
 
     void update(TransformComponent viewerObjectTransform, float aspect);
 
@@ -41,6 +41,7 @@ class Camera {
    private:
     glm::mat4 projectionMatrix{1.f};
     glm::mat4 viewMatrix{1.f};
+    glm::mat4 invViewMatrix{1.f};
 
     Entity skybox{Entity::createEntity()};
     bool skyboxEnabled = false;
