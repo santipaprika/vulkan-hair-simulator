@@ -9,6 +9,7 @@
 // libs
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <Entity.hpp>
 #include <glm/glm.hpp>
 
 namespace vkr {
@@ -29,8 +30,20 @@ class Camera {
     const glm::mat4& getView() const { return viewMatrix; }
     glm::vec3 getPosition() { return glm::vec3{viewMatrix[3][0], viewMatrix[3][1], viewMatrix[3][2]}; }
 
+    void update(TransformComponent viewerObjectTransform, float aspect);
+
+    void loadSkybox(Device& device);
+    // void removeSkybox();
+    Entity& getSkybox() { return skybox; }
+
+    bool& hasSkybox() { return skyboxEnabled; };
+
    private:
     glm::mat4 projectionMatrix{1.f};
     glm::mat4 viewMatrix{1.f};
+
+    Entity skybox{Entity::createEntity()};
+    bool skyboxEnabled = false;
 };
+
 }  // namespace vkr

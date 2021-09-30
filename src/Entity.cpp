@@ -4,8 +4,10 @@
 *   Copyright (c) 2020 Brendan Galea
 */
 
-#include <Entity.hpp>
 #include <stb_image.h>
+
+#include <Entity.hpp>
+#include <FrameInfo.hpp>
 
 namespace vkr {
 
@@ -64,6 +66,28 @@ glm::mat3 TransformComponent::normalMatrix() {
             invScale.z * (c1 * c2),
         },
     };
+}
+
+void Entity::render(glm::mat4 camProjectionView, FrameInfo& frameInfo, VkPipelineLayout pipelineLayout) {
+    auto modelMatrix = transform.mat4();
+    EntityUBO entityUBO = {camProjectionView, modelMatrix, transform.normalMatrix(), frameInfo.camera.getPosition()};
+
+    uniformBuffer->writeToIndex(&entityUBO, frameInfo.frameIndex);
+    uniformBuffer->flushIndex(frameInfo.frameIndex);
+
+    VkCommandBuffer commandBuffer = frameInfo.commandBuffer;
+    SimplePushConstantData push{0.1f};
+    vkCmdPushConstants(
+        commandBuffer,
+        pipelineLayout,
+        VK_SHADER_STAGE_FRAGMENT_BIT,
+        0,
+        sizeof(SimplePushConstantData),
+        &push);
+
+    mesh->bind(commandBuffer);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+    mesh->draw(commandBuffer);
 }
 
 }  // namespace vkr

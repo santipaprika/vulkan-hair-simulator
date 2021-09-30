@@ -19,6 +19,7 @@
 #include <memory>
 
 namespace vkr {
+struct FrameInfo;
 
 struct TransformComponent {
     glm::vec3 translation{};
@@ -40,6 +41,10 @@ struct EntityUBO {
     glm::vec3 camPos;
 };
 
+struct SimplePushConstantData {
+    float brightness;
+};
+
 class Entity {
    public:
     using id_t = unsigned int;
@@ -56,16 +61,18 @@ class Entity {
 
     id_t getId() { return id; }
 
+    void render(glm::mat4 camProjectionView, FrameInfo& frameInfo, VkPipelineLayout pipelineLayout);
+
     TransformComponent transform{};
 
     // COMPONENTS (Might be a vector?)
-    std::shared_ptr<Mesh> mesh{};
-    std::shared_ptr<Hair> hair{};
-    std::shared_ptr<Material> material{};
-    std::shared_ptr<Light> light{};
+    std::shared_ptr<Mesh> mesh{nullptr};
+    std::shared_ptr<Hair> hair{nullptr};
+    std::shared_ptr<Material> material{nullptr};
+    std::shared_ptr<Light> light{nullptr};
 
     VkDescriptorSet descriptorSet;
-    
+
     // Transform specific uniform buffer
     std::unique_ptr<Buffer> uniformBuffer = nullptr;
 
@@ -74,4 +81,5 @@ class Entity {
 
     id_t id;
 };
+
 }  // namespace vkr

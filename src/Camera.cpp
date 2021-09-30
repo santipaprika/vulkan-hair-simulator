@@ -83,4 +83,26 @@ void Camera::setViewYXZ(glm::vec3 position, glm::vec3 rotation) {
     viewMatrix[3][2] = -glm::dot(w, position);
 }
 
+void Camera::update(TransformComponent viewerObjectTransform, float aspect) {
+    setViewYXZ(viewerObjectTransform.translation, viewerObjectTransform.rotation);
+    setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
+    skybox.transform.translation = getPosition();
+}
+
+void Camera::loadSkybox(Device& device) {
+    std::string models_path(MODELS_PATH);
+    skybox.mesh = Mesh::createModelFromFile(device, (models_path + "/sphere.obj").c_str());
+
+    std::string textures_path(TEXTURES_PATH);
+    std::shared_ptr<Texture> texture = Texture::createTextureFromFile(device, (textures_path + "/test.jpg"));
+    skybox.material = std::make_shared<Material>(texture);
+
+    skyboxEnabled = true;
+}
+
+// void Camera::enableSkybox(bool enable) 
+// {
+//     skyboxEnabled = enable;
+// }
+
 }  // namespace vkr

@@ -9,6 +9,7 @@
 #include <Device.hpp>
 #include <Entity.hpp>
 #include <Renderer.hpp>
+#include <Scene.hpp>
 #include <Window.hpp>
 
 // std
@@ -34,14 +35,10 @@ class Application {
     void run();
 
    private:
-    void loadEntities();
-
     Window window{WIDTH, HEIGHT, "Vulkan Tutorial"};
     Device device{window};
     Renderer renderer{window, device};
 
-    std::vector<Entity> entities;
-    std::vector<Entity> lights;
-    std::vector<Texture> textures;
+    Scene scene{device};
 };
 }  // namespace vkr

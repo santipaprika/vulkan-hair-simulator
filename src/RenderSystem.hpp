@@ -11,6 +11,7 @@
 #include <Entity.hpp>
 #include <Pipeline.hpp>
 #include <FrameInfo.hpp>
+#include <Scene.hpp>
 
 // std
 #include <memory>
@@ -25,7 +26,7 @@ struct PoolSize {
 
 class RenderSystem {
    public:
-    RenderSystem(Device &device, VkRenderPass renderPass, std::vector<Entity> &entities);
+    RenderSystem(Device &device, VkRenderPass renderPass, Scene &scene);
     ~RenderSystem();
 
     RenderSystem(const RenderSystem &) = delete;
@@ -44,6 +45,8 @@ class RenderSystem {
     void createPipelineLayout();
     void createPipeline(VkRenderPass renderPass);
 
+    void updateDescriptorSet(Entity& entity);
+
     Device &device;
 
     std::unique_ptr<PipelineSet> pipelines;
@@ -51,7 +54,7 @@ class RenderSystem {
     VkDescriptorSetLayout descriptorSetLayout;
     VkPipelineLayout pipelineLayout;
 
-    std::vector<Entity> &entities;
+    Scene& scene;
 
     VkDescriptorPool descriptorPool;
 
