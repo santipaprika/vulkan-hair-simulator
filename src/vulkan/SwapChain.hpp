@@ -48,23 +48,27 @@ class SwapChain {
 
     VkResult acquireNextImage(uint32_t *imageIndex);
     VkResult submitCommandBuffers(const std::vector<VkCommandBuffer> &buffers, uint32_t *imageIndex);
-    static VkImageView createImageView(Device &device, VkImage image, VkFormat format);
+    static VkImageView createImageView(Device &device, VkImage image, VkFormat format, VkImageAspectFlagBits aspectMask);
 
     bool compareSwapFormats(const SwapChain &swapChain) const {
         return swapChain.swapChainDepthFormat == swapChainDepthFormat &&
                swapChain.swapChainImageFormat == swapChainImageFormat;
     }
 
-    void createFramebuffers(const std::vector<std::vector<VkImageView>>& attachments, std::vector<VkFramebuffer>& framebuffers, VkRenderPass renderPass);
+    void createFramebuffers(const std::vector<std::vector<VkImageView>> &attachments, std::vector<VkFramebuffer> &framebuffers, VkRenderPass renderPass);
 
    private:
     void init();
     void createSwapChain();
     void createImageViews();
+    void createColorResources();
     void createDepthResources();
     void createRenderPass();
     void createFramebuffers();
     void createSyncObjects();
+    void createImages(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples,
+                     VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+                     std::vector<VkImage> &images, std::vector<VkDeviceMemory> &imageMemories, std::vector<VkImageView> &imageViews);
 
     // Helper functions
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(
@@ -79,6 +83,10 @@ class SwapChain {
 
     std::vector<VkFramebuffer> swapChainFramebuffers;
     VkRenderPass renderPass;
+
+    std::vector<VkImage> colorImages;
+    std::vector<VkDeviceMemory> colorImageMemories;
+    std::vector<VkImageView> colorImageViews;
 
     std::vector<VkImage> depthImages;
     std::vector<VkDeviceMemory> depthImageMemories;

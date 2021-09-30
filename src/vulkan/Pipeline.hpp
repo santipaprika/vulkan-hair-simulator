@@ -54,7 +54,7 @@ class Pipeline {
 
     void bind(VkCommandBuffer commandBuffer);
 
-    static void defaultPipelineConfigInfo(PipelineConfigInfo& configInfo);
+    static void defaultPipelineConfigInfo(PipelineConfigInfo& configInfo, Device& device);
     static std::unique_ptr<PipelineSet> createGraphicsPipelines(
         Device& device,
         const std::vector<ShaderPaths>& shadersFilepaths,

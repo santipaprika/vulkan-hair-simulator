@@ -53,6 +53,7 @@ class Device {
     VkQueue presentQueue() { return _presentQueue; }
     VkInstance instance() { return _instance; }
     QueueFamilyIndices queueFamilyIndices() { return _queueFamilyindices; }
+    VkSampleCountFlagBits msaaSamples() { return _msaaSamples; }
 
     SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(_physicalDevice); }
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
@@ -88,6 +89,7 @@ class Device {
     void setupDebugMessenger();
     void createSurface();
     void pickPhysicalDevice();
+    VkSampleCountFlagBits Device::getMaxUsableSampleCount();
     void createLogicalDevice();
     void createCommandPool();
 
@@ -112,6 +114,7 @@ class Device {
     QueueFamilyIndices _queueFamilyindices;
     VkQueue _graphicsQueue;
     VkQueue _presentQueue;
+    VkSampleCountFlagBits _msaaSamples;
 
     const std::vector<const char *> _validationLayers = {"VK_LAYER_KHRONOS_validation"};
     const std::vector<const char *> _deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
