@@ -25,7 +25,7 @@ Renderer::Renderer(Window &window, Device &device)
 
 Renderer::~Renderer() { freeCommandBuffers(); }
 
-void Renderer::recreateSwapChain() {
+void Renderer::recreateSwapChain(bool useMSAA) {
     auto extent = window.getExtent();
     while (extent.width == 0 || extent.height == 0) {
         extent = window.getExtent();
@@ -34,10 +34,10 @@ void Renderer::recreateSwapChain() {
     vkDeviceWaitIdle(device.device());
 
     if (swapChain == nullptr) {
-        swapChain = std::make_unique<SwapChain>(device, extent);
+        swapChain = std::make_unique<SwapChain>(device, extent, useMSAA);
     } else {
         std::shared_ptr<SwapChain> oldSwapChain = std::move(swapChain);
-        swapChain = std::make_unique<SwapChain>(device, extent, oldSwapChain);
+        swapChain = std::make_unique<SwapChain>(device, extent, oldSwapChain, useMSAA);
 
         if (!oldSwapChain->compareSwapFormats(*swapChain.get())) {
             throw std::runtime_error("Swap chain image(or depth) format has changed!");

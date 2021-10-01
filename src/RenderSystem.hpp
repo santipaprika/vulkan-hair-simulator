@@ -26,7 +26,7 @@ struct PoolSize {
 
 class RenderSystem {
    public:
-    RenderSystem(Device &device, VkRenderPass renderPass, Scene &scene);
+    RenderSystem(Device &device, VkRenderPass renderPass, Scene &scene, bool useMSAA = true);
     ~RenderSystem();
 
     RenderSystem(const RenderSystem &) = delete;
@@ -35,6 +35,7 @@ class RenderSystem {
     void setupDescriptors();
 
     void renderEntities(FrameInfo frameInfo);
+    void recreatePipelines(VkRenderPass renderPass, bool useMSAA = true);
 
    private:
     void createDescriptorSetLayout();
@@ -43,7 +44,7 @@ class RenderSystem {
     void createDescriptorSets();
 
     void createPipelineLayout();
-    void createPipeline(VkRenderPass renderPass);
+    void createPipeline(VkRenderPass renderPass, bool useMSAA = true);
 
     void updateDescriptorSet(Entity& entity);
 

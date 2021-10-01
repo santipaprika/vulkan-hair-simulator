@@ -21,13 +21,13 @@
 
 namespace vkr {
 
-RenderSystem::RenderSystem(Device& device, VkRenderPass renderPass, Scene& scene)
+RenderSystem::RenderSystem(Device& device, VkRenderPass renderPass, Scene& scene, bool useMSAA)
     : device{device}, scene{scene} {
     createUniformBuffers();
     setupDescriptors();
 
     createPipelineLayout();
-    createPipeline(renderPass);
+    createPipeline(renderPass, useMSAA);
 }
 
 void RenderSystem::setupDescriptors() {
@@ -75,10 +75,10 @@ void RenderSystem::createPipelineLayout() {
     }
 }
 
-void RenderSystem::createPipeline(VkRenderPass renderPass) {
+void RenderSystem::createPipeline(VkRenderPass renderPass, bool useMSAA) {
     assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
     PipelineConfigInfo pipelineConfig{};
-    Pipeline::defaultPipelineConfigInfo(pipelineConfig, device);
+    Pipeline::defaultPipelineConfigInfo(pipelineConfig, device, useMSAA);
     pipelineConfig.renderPass = renderPass;
     pipelineConfig.pipelineLayout = pipelineLayout;
 
@@ -143,27 +143,36 @@ void RenderSystem::createUniformBuffers() {
 
     // Triangle meshes
     for (auto& entity : scene.getEntities()) {
-        entity.uniformBuffer = std::make_unique<Buffer>(device, bufferSize, SwapChain::MAX_FRAMES_IN_FLIGHT,
-                                                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                                                        device.properties.limits.minUniformBufferOffsetAlignment);
-        entity.uniformBuffer->map();
+        entity.uboBuffers.resize(SwapChain::MAX_FRAMES_IN_FLIGHT);
+        for (auto& uboBuffer : entity.uboBuffers) {
+            uboBuffer = std::make_unique<Buffer>(device, bufferSize, 1,
+                                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                                                 device.properties.limits.minUniformBufferOffsetAlignment);
+            uboBuffer->map();
+        }
     }
 
     // Lights
     for (auto& lightEntity : scene.getLightEntities()) {
         // Create light specific UBO
-        lightEntity.light->uniformBuffer = std::make_unique<Buffer>(device, lightBufferSize, SwapChain::MAX_FRAMES_IN_FLIGHT,
-                                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                                                                    device.properties.limits.minUniformBufferOffsetAlignment);
-        lightEntity.light->uniformBuffer->map();
+        lightEntity.uboBuffers.resize(SwapChain::MAX_FRAMES_IN_FLIGHT);
+        for (auto& uboBuffer : lightEntity.uboBuffers) {
+            uboBuffer = std::make_unique<Buffer>(device, lightBufferSize, 1,
+                                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                                                 device.properties.limits.minUniformBufferOffsetAlignment);
+            uboBuffer->map();
+        }
     }
 
     // Skybox
     if (scene.getMainCamera().hasSkybox()) {
-        scene.getMainCamera().getSkybox().uniformBuffer = std::make_unique<Buffer>(device, bufferSize, SwapChain::MAX_FRAMES_IN_FLIGHT,
-                                                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                                                                                   device.properties.limits.minUniformBufferOffsetAlignment);
-        scene.getMainCamera().getSkybox().uniformBuffer->map();
+        scene.getMainCamera().getSkybox().uboBuffers.resize(SwapChain::MAX_FRAMES_IN_FLIGHT);
+        for (auto& uboBuffer : scene.getMainCamera().getSkybox().uboBuffers) {
+            uboBuffer = std::make_unique<Buffer>(device, bufferSize, 1,
+                                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                                                 device.properties.limits.minUniformBufferOffsetAlignment);
+            uboBuffer->map();
+        }
     }
 }
 
@@ -219,7 +228,7 @@ void RenderSystem::updateDescriptorSet(Entity& entity) {
     descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     descriptorWrites[0].descriptorCount = 1;
 
-    descriptorWrites[0].pBufferInfo = &entity.uniformBuffer->descriptorInfo(sizeof(EntityUBO));
+    descriptorWrites[0].pBufferInfo = &entity.uboBuffers[0]->descriptorInfo(sizeof(EntityUBO));
 
     // Binding 1: Object texture
     descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -262,8 +271,8 @@ void RenderSystem::renderEntities(FrameInfo frameInfo) {
         auto modelMatrix = entity.transform.mat4();
         EntityUBO entityUBO = {projectionView, modelMatrix, entity.transform.normalMatrix(), frameInfo.camera.getPosition()};
 
-        entity.uniformBuffer->writeToIndex(&entityUBO, frameInfo.frameIndex);
-        entity.uniformBuffer->flushIndex(frameInfo.frameIndex);
+        entity.uboBuffers[frameInfo.frameIndex]->writeToBuffer(&entityUBO);
+        entity.uboBuffers[frameInfo.frameIndex]->flush();
 
         SimplePushConstantData push{0.1f};
         vkCmdPushConstants(
@@ -284,6 +293,10 @@ void RenderSystem::renderEntities(FrameInfo frameInfo) {
         pipelines->meshes->bind(commandBuffer);
         scene.getMainCamera().getSkybox().render(projectionView, frameInfo, pipelineLayout);
     }
+}
+
+void RenderSystem::recreatePipelines(VkRenderPass renderPass, bool useMSAA) {
+    createPipeline(renderPass, useMSAA);
 }
 
 }  // namespace vkr

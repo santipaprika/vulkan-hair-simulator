@@ -52,7 +52,9 @@ std::unique_ptr<PipelineSet> Pipeline::createGraphicsPipelines(Device& device,
     std::vector<VkPipeline> vkPipelines(pipelinesVector.size());
     std::vector<VkPipelineVertexInputStateCreateInfo> pipelinesVertexInputInfos(pipelinesVector.size());
     std::vector<std::vector<VkPipelineShaderStageCreateInfo>> shaderStages(pipelinesVector.size());
-    for (auto shaderStage : shaderStages) { shaderStage.resize(2); }
+    for (auto shaderStage : shaderStages) {
+        shaderStage.resize(2);
+    }
 
     // set info for each pipeline
     for (int i = 0; i < pipelinesVector.size(); i++) {
@@ -134,7 +136,7 @@ void Pipeline::createShaderModule(Device& device, const std::vector<char>& code,
 
 void Pipeline::createShaderStageInfo(VkShaderModule& vertShader,
                                      VkShaderModule& fragShader,
-                                     std::vector<VkPipelineShaderStageCreateInfo> &shaderStages) {
+                                     std::vector<VkPipelineShaderStageCreateInfo>& shaderStages) {
     // Vertex shader
     shaderStages.push_back({});
     shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -160,7 +162,7 @@ void Pipeline::bind(VkCommandBuffer commandBuffer) {
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 }
 
-void Pipeline::defaultPipelineConfigInfo(PipelineConfigInfo& configInfo, Device& device) {
+void Pipeline::defaultPipelineConfigInfo(PipelineConfigInfo& configInfo, Device& device, bool useMSAA) {
     configInfo.inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     configInfo.inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     configInfo.inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
@@ -185,7 +187,7 @@ void Pipeline::defaultPipelineConfigInfo(PipelineConfigInfo& configInfo, Device&
 
     configInfo.multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     configInfo.multisampleInfo.sampleShadingEnable = VK_FALSE;
-    configInfo.multisampleInfo.rasterizationSamples = device.msaaSamples();
+    configInfo.multisampleInfo.rasterizationSamples = useMSAA ? device.msaaSamples() : VK_SAMPLE_COUNT_1_BIT;
     configInfo.multisampleInfo.minSampleShading = 1.0f;           // Optional
     configInfo.multisampleInfo.pSampleMask = nullptr;             // Optional
     configInfo.multisampleInfo.alphaToCoverageEnable = VK_FALSE;  // Optional

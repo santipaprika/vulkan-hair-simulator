@@ -11,11 +11,13 @@ class ImGuiHelper {
     
     VkCommandBuffer renderImGui();
     void updateImGuiFramebuffers();
+    void recreate();
 
    private:
     void setupImGuiContext();
     void createImGuiDescriptorPool();
     void createImGuiRenderPass();
+    void destroy();
 
     Application &application;
 

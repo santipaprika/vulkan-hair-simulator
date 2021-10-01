@@ -72,8 +72,8 @@ void Entity::render(glm::mat4 camProjectionView, FrameInfo& frameInfo, VkPipelin
     auto modelMatrix = transform.mat4();
     EntityUBO entityUBO = {camProjectionView, modelMatrix, transform.normalMatrix(), frameInfo.camera.getPosition()};
 
-    uniformBuffer->writeToIndex(&entityUBO, frameInfo.frameIndex);
-    uniformBuffer->flushIndex(frameInfo.frameIndex);
+    uboBuffers[frameInfo.frameIndex]->writeToBuffer(&entityUBO);
+    uboBuffers[frameInfo.frameIndex]->flush();
 
     VkCommandBuffer commandBuffer = frameInfo.commandBuffer;
     SimplePushConstantData push{0.1f};

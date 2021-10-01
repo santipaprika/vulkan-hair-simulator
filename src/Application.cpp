@@ -5,12 +5,11 @@
 */
 
 #include <Application.hpp>
-
+#include <FrameInfo.hpp>
 #include <ImGuiHelper.hpp>
 #include <InputController.hpp>
 #include <RenderSystem.hpp>
 #include <Utils.hpp>
-#include <FrameInfo.hpp>
 
 // libs
 #define GLM_FORCE_RADIANS
@@ -43,7 +42,8 @@ void Application::run() {
     auto viewerObject = Entity::createEntity();
     InputController cameraController{};
 
-    bool useSkybox = true;
+    bool useMSAA = true;
+    bool switchedMSAA = false;
 
     auto currentTime = std::chrono::high_resolution_clock::now();
     while (!window.shouldClose()) {
@@ -54,11 +54,11 @@ void Application::run() {
         ImGui::NewFrame();
 
         ImGui::Begin("App window");
-        if (ImGui::Checkbox("Use Skybox", &scene.getMainCamera().hasSkybox()))
-            int a =1;
+        ImGui::Checkbox("Use Skybox", &scene.getMainCamera().hasSkybox());
+        switchedMSAA = ImGui::Checkbox("Use MSAA", &useMSAA);
 
         ImGui::End();
-        
+
         ImGui::ShowDemoWindow();
         ImGui::Render();
 
@@ -90,6 +90,12 @@ void Application::run() {
             if (wasWindowResized) {
                 imGuiHelper.updateImGuiFramebuffers();
             }
+        }
+
+        if (switchedMSAA) {
+            renderer.recreateSwapChain(useMSAA);
+            renderSystem.recreatePipelines(renderer.getSwapChainRenderPass(), useMSAA);
+            imGuiHelper.recreate();
         }
     }
 

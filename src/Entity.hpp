@@ -74,7 +74,7 @@ class Entity {
     VkDescriptorSet descriptorSet;
 
     // Transform specific uniform buffer
-    std::unique_ptr<Buffer> uniformBuffer = nullptr;
+    std::vector<std::unique_ptr<Buffer>> uboBuffers;
 
    private:
     Entity(id_t objId) : id{objId} {}

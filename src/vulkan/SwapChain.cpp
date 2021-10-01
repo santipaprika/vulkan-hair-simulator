@@ -17,24 +17,25 @@
 
 namespace vkr {
 
-SwapChain::SwapChain(Device &deviceRef, VkExtent2D extent)
+SwapChain::SwapChain(Device &deviceRef, VkExtent2D extent, bool useMSAA)
     : device{deviceRef}, windowExtent{extent} {
-    init();
+    init(useMSAA);
 }
 
 SwapChain::SwapChain(
-    Device &deviceRef, VkExtent2D extent, std::shared_ptr<SwapChain> previous)
+    Device &deviceRef, VkExtent2D extent, std::shared_ptr<SwapChain> previous, bool useMSAA)
     : device{deviceRef}, windowExtent{extent}, oldSwapChain{previous} {
-    init();
+    init(useMSAA);
     oldSwapChain = nullptr;
 }
 
-void SwapChain::init() {
+void SwapChain::init(bool useMSAA) {
+    swapChainAttachments.clear();
     createSwapChain();
-    createImageViews();
-    createRenderPass();
-    createColorResources();
-    createDepthResources();
+    createImageViews(); // Swap chain image views to present (before imgui)
+    if (useMSAA) createColorResources(); // image views for MSAA to resolve
+    createDepthResources(useMSAA); // depth views
+    createRenderPass(useMSAA);
     createFramebuffers();
     createSyncObjects();
 }
@@ -231,10 +232,10 @@ void SwapChain::createImageViews() {
     }
 }
 
-void SwapChain::createRenderPass() {
+void SwapChain::createRenderPass(bool useMSAA) {
     VkAttachmentDescription colorAttachment = {};
     colorAttachment.format = getSwapChainImageFormat();
-    colorAttachment.samples = device.msaaSamples();
+    colorAttachment.samples = useMSAA ? device.msaaSamples() : VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -250,7 +251,7 @@ void SwapChain::createRenderPass() {
 
     VkAttachmentDescription depthAttachment{};
     depthAttachment.format = findDepthFormat();
-    depthAttachment.samples = device.msaaSamples();
+    depthAttachment.samples = useMSAA ? device.msaaSamples() : VK_SAMPLE_COUNT_1_BIT;
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -262,28 +263,37 @@ void SwapChain::createRenderPass() {
     depthAttachmentRef.attachment = 1;
     depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-    VkAttachmentDescription colorAttachmentResolve{};
-    colorAttachmentResolve.format = getSwapChainImageFormat();
-    colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    // same as above if using MSAA
-    colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference resolveAttachmentRef = {};
-    resolveAttachmentRef.attachment = 2;
-    resolveAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
     VkSubpassDescription subpass = {};
+    std::vector<VkAttachmentDescription> attachments = {colorAttachment, depthAttachment};
+    swapChainAttachments.push_back(swapChainImageViews);
+    swapChainAttachments.push_back(depthImageViews);
+    if (useMSAA) {
+        VkAttachmentDescription colorAttachmentResolve{};
+        colorAttachmentResolve.format = getSwapChainImageFormat();
+        colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        // same as above if using MSAA
+        colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        VkAttachmentReference resolveAttachmentRef = {};
+        resolveAttachmentRef.attachment = 2;
+        resolveAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        subpass.pResolveAttachments = &resolveAttachmentRef;
+        swapChainAttachments.push_back(swapChainAttachments[0]);
+        swapChainAttachments[0] = colorImageViews;
+        attachments.push_back(colorAttachmentResolve);
+    }
+
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
     subpass.pDepthStencilAttachment = &depthAttachmentRef;
-    subpass.pResolveAttachments = &resolveAttachmentRef;
 
     VkSubpassDependency dependency = {};
     dependency.dstSubpass = 0;
@@ -296,7 +306,6 @@ void SwapChain::createRenderPass() {
     dependency.srcStageMask =
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 
-    std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
     VkRenderPassCreateInfo renderPassInfo = {};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -331,6 +340,7 @@ void SwapChain::createFramebuffers(const std::vector<std::vector<VkImageView>> &
         framebufferInfo.height = swapChainExtent.height;
         framebufferInfo.layers = 1;
 
+        // RENDER PASS IS KEPT???
         if (vkCreateFramebuffer(
                 device.device(),
                 &framebufferInfo,
@@ -342,7 +352,7 @@ void SwapChain::createFramebuffers(const std::vector<std::vector<VkImageView>> &
 }
 
 void SwapChain::createFramebuffers() {
-    createFramebuffers(std::vector({colorImageViews, depthImageViews, swapChainImageViews}), swapChainFramebuffers, renderPass);
+    createFramebuffers(swapChainAttachments, swapChainFramebuffers, renderPass);
 }
 
 void SwapChain::createColorResources() {
@@ -359,13 +369,13 @@ void SwapChain::createColorResources() {
     }
 }
 
-void SwapChain::createDepthResources() {
+void SwapChain::createDepthResources(bool useMSAA) {
     VkFormat depthFormat = findDepthFormat();
     swapChainDepthFormat = depthFormat;
 
     VkExtent2D swapChainExtent = getSwapChainExtent();
 
-    createImages(swapChainExtent.width, swapChainExtent.height, 1, device.msaaSamples(),
+    createImages(swapChainExtent.width, swapChainExtent.height, 1, useMSAA ? device.msaaSamples() : VK_SAMPLE_COUNT_1_BIT,
                  depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImages, depthImageMemories, depthImageViews);
 

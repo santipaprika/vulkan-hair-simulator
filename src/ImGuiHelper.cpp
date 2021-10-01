@@ -1,10 +1,9 @@
-#include <ImGuiHelper.hpp>
-
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 #include <vulkan/vulkan.h>
 
+#include <ImGuiHelper.hpp>
 #include <stdexcept>
 
 namespace vkr {
@@ -14,22 +13,7 @@ ImGuiHelper::ImGuiHelper(Application& application) : application{application} {
 }
 
 ImGuiHelper::~ImGuiHelper() {
-    Device& device = application.getDevice();
-
-    for (auto framebuffer : imGuiFramebuffers) {
-        vkDestroyFramebuffer(device.device(), framebuffer, nullptr);
-    }
-
-    vkDestroyRenderPass(device.device(), imGuiRenderPass, nullptr);
-
-    vkFreeCommandBuffers(device.device(), imGuiCommandPool, static_cast<uint32_t>(imGuiCommandBuffers.size()), imGuiCommandBuffers.data());
-    vkDestroyCommandPool(device.device(), imGuiCommandPool, nullptr);
-
-    vkDestroyDescriptorPool(device.device(), imGuiDescriptorPool, nullptr);
-
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+    destroy();
 }
 
 VkCommandBuffer ImGuiHelper::renderImGui() {
@@ -63,6 +47,11 @@ void ImGuiHelper::updateImGuiFramebuffers() {
     renderer.getSwapChain()->createFramebuffers(std::vector({renderer.getSwapChain()->getImageViews()}),
                                                 imGuiFramebuffers,
                                                 imGuiRenderPass);
+}
+
+void ImGuiHelper::recreate() {
+    destroy();
+    setupImGuiContext();
 }
 
 static void checkImGuiVkResult(VkResult err) {
@@ -182,6 +171,25 @@ void ImGuiHelper::createImGuiRenderPass() {
     if (vkCreateRenderPass(application.getDevice().device(), &info, nullptr, &imGuiRenderPass) != VK_SUCCESS) {
         throw std::runtime_error("failed to create ImGui's separate render pass");
     }
+}
+
+void ImGuiHelper::destroy() {
+    Device& device = application.getDevice();
+
+    for (auto framebuffer : imGuiFramebuffers) {
+        vkDestroyFramebuffer(device.device(), framebuffer, nullptr);
+    }
+
+    vkDestroyRenderPass(device.device(), imGuiRenderPass, nullptr);
+
+    vkFreeCommandBuffers(device.device(), imGuiCommandPool, static_cast<uint32_t>(imGuiCommandBuffers.size()), imGuiCommandBuffers.data());
+    vkDestroyCommandPool(device.device(), imGuiCommandPool, nullptr);
+
+    vkDestroyDescriptorPool(device.device(), imGuiDescriptorPool, nullptr);
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 }
 
 }  // namespace vkr

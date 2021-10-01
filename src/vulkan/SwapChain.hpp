@@ -22,9 +22,9 @@ class SwapChain {
    public:
     static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
-    SwapChain(Device &deviceRef, VkExtent2D windowExtent);
+    SwapChain(Device &deviceRef, VkExtent2D windowExtent, bool useMSAA = true);
     SwapChain(
-        Device &deviceRef, VkExtent2D windowExtent, std::shared_ptr<SwapChain> previous);
+        Device &deviceRef, VkExtent2D windowExtent, std::shared_ptr<SwapChain> previous, bool useMSAA = true);
 
     ~SwapChain();
 
@@ -58,12 +58,12 @@ class SwapChain {
     void createFramebuffers(const std::vector<std::vector<VkImageView>> &attachments, std::vector<VkFramebuffer> &framebuffers, VkRenderPass renderPass);
 
    private:
-    void init();
+    void init(bool useMSAA = true);
     void createSwapChain();
     void createImageViews();
     void createColorResources();
-    void createDepthResources();
-    void createRenderPass();
+    void createDepthResources(bool useMSAA = true);
+    void createRenderPass(bool useMSAA = true);
     void createFramebuffers();
     void createSyncObjects();
     void createImages(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples,
@@ -93,6 +93,8 @@ class SwapChain {
     std::vector<VkImageView> depthImageViews;
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
+
+    std::vector<std::vector<VkImageView>> swapChainAttachments;
 
     Device &device;
     VkExtent2D windowExtent;

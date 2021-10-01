@@ -58,11 +58,11 @@ class Renderer {
     void createCommandBuffers(std::vector<VkCommandBuffer> &commandBuffers,
                               VkCommandPool commandPool,
                               uint32_t commandBufferCount = static_cast<uint32_t>(SwapChain::MAX_FRAMES_IN_FLIGHT));
+    void recreateSwapChain(bool useMSAA = true);
 
    private:
     void createCommandBuffers();
     void freeCommandBuffers();
-    void recreateSwapChain();
 
     Window &window;
     Device &device;
