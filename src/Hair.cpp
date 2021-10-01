@@ -89,8 +89,8 @@ void Hair::Builder::loadHairModel(const char *filename, cyHairFile &hairfile, fl
         indices.push_back(0xFFFFFFFF);
     }
 
-    printf("Number of stored hair points = %d\n", vertices.size());
-    printf("Number of indices = %d\n", indices.size());
+    printf("Number of stored hair points = %zd\n", vertices.size());
+    printf("Number of indices = %zd\n", indices.size());
 }
 
 void Hair::createVertexBuffers(const std::vector<Vertex> &vertices) {

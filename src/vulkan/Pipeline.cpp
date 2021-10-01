@@ -45,19 +45,21 @@ std::unique_ptr<PipelineSet> Pipeline::createGraphicsPipelines(Device& device,
                                                                const std::vector<PipelineConfigInfo>& configInfo,
                                                                std::vector<VertexInputDescriptions>& vertexInputDescriptions) {
     std::unique_ptr<PipelineSet> pipelines(new PipelineSet(std::make_shared<Pipeline>(device),
+                                                           std::make_shared<Pipeline>(device),
                                                            std::make_shared<Pipeline>(device)));
-    std::vector<std::shared_ptr<Pipeline>> pipelinesVector = {pipelines->meshes, pipelines->hair};
+    std::vector<std::shared_ptr<Pipeline>> pipelinesVector = {pipelines->meshes, pipelines->hair, pipelines->skybox};
+    uint32_t numPipelines = static_cast<uint32_t>(pipelinesVector.size());
 
-    std::vector<VkGraphicsPipelineCreateInfo> pipelinesInfo(pipelinesVector.size());
-    std::vector<VkPipeline> vkPipelines(pipelinesVector.size());
-    std::vector<VkPipelineVertexInputStateCreateInfo> pipelinesVertexInputInfos(pipelinesVector.size());
-    std::vector<std::vector<VkPipelineShaderStageCreateInfo>> shaderStages(pipelinesVector.size());
+    std::vector<VkGraphicsPipelineCreateInfo> pipelinesInfo(numPipelines);
+    std::vector<VkPipeline> vkPipelines(numPipelines);
+    std::vector<VkPipelineVertexInputStateCreateInfo> pipelinesVertexInputInfos(numPipelines);
+    std::vector<std::vector<VkPipelineShaderStageCreateInfo>> shaderStages(numPipelines);
     for (auto shaderStage : shaderStages) {
         shaderStage.resize(2);
     }
 
     // set info for each pipeline
-    for (int i = 0; i < pipelinesVector.size(); i++) {
+    for (int i = 0; i < numPipelines; i++) {
         auto* currentPipelineConfigInfo = &configInfo[i];
         assert(
             currentPipelineConfigInfo->pipelineLayout != VK_NULL_HANDLE &&
@@ -110,7 +112,7 @@ std::unique_ptr<PipelineSet> Pipeline::createGraphicsPipelines(Device& device,
     if (vkCreateGraphicsPipelines(
             device.device(),
             VK_NULL_HANDLE,
-            2,
+            numPipelines,
             pipelinesInfo.data(),
             nullptr,
             vkPipelines.data()) != VK_SUCCESS) {
@@ -119,6 +121,7 @@ std::unique_ptr<PipelineSet> Pipeline::createGraphicsPipelines(Device& device,
 
     pipelines->meshes->graphicsPipeline = vkPipelines[0];
     pipelines->hair->graphicsPipeline = vkPipelines[1];
+    pipelines->skybox->graphicsPipeline = vkPipelines[2];
 
     return pipelines;
 }
@@ -178,7 +181,7 @@ void Pipeline::defaultPipelineConfigInfo(PipelineConfigInfo& configInfo, Device&
     configInfo.rasterizationInfo.rasterizerDiscardEnable = VK_FALSE;
     configInfo.rasterizationInfo.polygonMode = VK_POLYGON_MODE_FILL;
     configInfo.rasterizationInfo.lineWidth = 1.0f;
-    configInfo.rasterizationInfo.cullMode = VK_CULL_MODE_NONE;
+    configInfo.rasterizationInfo.cullMode = VK_CULL_MODE_BACK_BIT;
     configInfo.rasterizationInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
     configInfo.rasterizationInfo.depthBiasEnable = VK_FALSE;
     configInfo.rasterizationInfo.depthBiasConstantFactor = 0.0f;  // Optional

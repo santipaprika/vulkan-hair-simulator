@@ -66,7 +66,7 @@ class Pipeline {
 
     static void createShaderModule(Device& device, const std::vector<char>& code, VkShaderModule* shaderModule);
     static void createShaderStageInfo(VkShaderModule& vertShader, VkShaderModule& fragShader,
-                                      std::vector<VkPipelineShaderStageCreateInfo> &shaderStages);
+                                      std::vector<VkPipelineShaderStageCreateInfo>& shaderStages);
 
     Device& device;
     VkPipeline graphicsPipeline{nullptr};
@@ -77,11 +77,10 @@ class Pipeline {
 struct PipelineSet {
     std::shared_ptr<Pipeline> meshes;
     std::shared_ptr<Pipeline> hair;
+    std::shared_ptr<Pipeline> skybox;
 
-    PipelineSet(std::shared_ptr<Pipeline> meshes, std::shared_ptr<Pipeline> hair) {
-        this->meshes = meshes;
-        this->hair = hair;
-    }
+    PipelineSet(std::shared_ptr<Pipeline> meshes, std::shared_ptr<Pipeline> hair, std::shared_ptr<Pipeline> skybox)
+        : meshes{meshes}, hair{hair}, skybox{skybox} {}
 };
 
 }  // namespace vkr

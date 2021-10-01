@@ -76,6 +76,11 @@ void RenderSystem::createPipelineLayout() {
 }
 
 void RenderSystem::createPipeline(VkRenderPass renderPass, bool useMSAA) {
+    // 3 pipelines at the moment:
+    //     1. Triangular mesh
+    //     2. Hair (Line strip)
+    //     3. Skybox
+
     assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
     PipelineConfigInfo pipelineConfig{};
     Pipeline::defaultPipelineConfigInfo(pipelineConfig, device, useMSAA);
@@ -86,6 +91,9 @@ void RenderSystem::createPipeline(VkRenderPass renderPass, bool useMSAA) {
     hairPipelineConfig.inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
     hairPipelineConfig.inputAssemblyInfo.primitiveRestartEnable = VK_TRUE;
 
+    PipelineConfigInfo skyboxPipelineConfig = pipelineConfig;
+    // skyboxPipelineConfig.rasterizationInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+
     ShaderPaths basicShaderPaths;
     basicShaderPaths.fragFilepath = "../shaders/basic.frag.spv";
     basicShaderPaths.vertFilepath = "../shaders/basic.vert.spv";
@@ -94,21 +102,27 @@ void RenderSystem::createPipeline(VkRenderPass renderPass, bool useMSAA) {
     hairShaderPaths.fragFilepath = "../shaders/hair.frag.spv";
     hairShaderPaths.vertFilepath = "../shaders/hair.vert.spv";
 
-    std::vector<ShaderPaths> pipelinesShaderPaths = {basicShaderPaths, hairShaderPaths};
+    ShaderPaths skyboxShaderPaths;
+    skyboxShaderPaths.fragFilepath = "../shaders/skybox.frag.spv";
+    skyboxShaderPaths.vertFilepath = "../shaders/skybox.vert.spv";
 
-    VertexInputDescriptions meshPipeline;
-    meshPipeline.attributeDescription = Mesh::Vertex::getAttributeDescriptions();
-    meshPipeline.bindingDescription = Mesh::Vertex::getBindingDescriptions();
+    std::vector<ShaderPaths> pipelinesShaderPaths = {basicShaderPaths, hairShaderPaths, skyboxShaderPaths};
 
-    VertexInputDescriptions hairPipeline;
-    hairPipeline.attributeDescription = Hair::Vertex::getAttributeDescriptions();
-    hairPipeline.bindingDescription = Hair::Vertex::getBindingDescriptions();
+    VertexInputDescriptions meshPipelineInputDescriptions;
+    meshPipelineInputDescriptions.attributeDescription = Mesh::Vertex::getAttributeDescriptions();
+    meshPipelineInputDescriptions.bindingDescription = Mesh::Vertex::getBindingDescriptions();
+
+    VertexInputDescriptions hairPipelineInputDescriptions;
+    hairPipelineInputDescriptions.attributeDescription = Hair::Vertex::getAttributeDescriptions();
+    hairPipelineInputDescriptions.bindingDescription = Hair::Vertex::getBindingDescriptions();
+
+    // Skybox pipeline uses same description as triangle mesh pipeline.
 
     pipelines = Pipeline::createGraphicsPipelines(
         device,
         pipelinesShaderPaths,
-        std::vector<PipelineConfigInfo>({pipelineConfig, hairPipelineConfig}),
-        std::vector<VertexInputDescriptions>({meshPipeline, hairPipeline}));
+        std::vector<PipelineConfigInfo>({pipelineConfig, hairPipelineConfig, skyboxPipelineConfig}),
+        std::vector<VertexInputDescriptions>({meshPipelineInputDescriptions, hairPipelineInputDescriptions, meshPipelineInputDescriptions}));
 }
 
 void RenderSystem::createDescriptorSetLayout() {
@@ -259,7 +273,6 @@ void RenderSystem::renderEntities(FrameInfo frameInfo) {
     pipelines->meshes->bind(commandBuffer);
     for (auto& entity : scene.getEntities()) {
         if (!entity.mesh) continue;
-
         entity.render(projectionView, frameInfo, pipelineLayout);
     }
 
@@ -290,7 +303,7 @@ void RenderSystem::renderEntities(FrameInfo frameInfo) {
 
     // SKYBOX
     if (scene.getMainCamera().hasSkybox()) {
-        pipelines->meshes->bind(commandBuffer);
+        pipelines->skybox->bind(commandBuffer);
         scene.getMainCamera().getSkybox().render(projectionView, frameInfo, pipelineLayout);
     }
 }
