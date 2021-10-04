@@ -204,17 +204,17 @@ void SwapChain::createSwapChain() {
     swapChainExtent = extent;
 }
 
-VkImageView SwapChain::createImageView(Device &device, VkImage image, VkFormat format, VkImageAspectFlagBits aspectMask) {
+VkImageView SwapChain::createImageView(Device &device, VkImage image, VkFormat format, VkImageAspectFlagBits aspectMask, bool isCubemap) {
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = image;
-    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.viewType = isCubemap ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format = format;
     viewInfo.subresourceRange.aspectMask = aspectMask;
     viewInfo.subresourceRange.baseMipLevel = 0;
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = 1;
+    viewInfo.subresourceRange.layerCount = isCubemap ? 6 : 1;
 
     VkImageView imageView;
     if (vkCreateImageView(device.device(), &viewInfo, nullptr, &imageView) != VK_SUCCESS) {

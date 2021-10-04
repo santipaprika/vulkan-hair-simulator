@@ -1,8 +1,7 @@
-#include <Texture.hpp>
 #include <SwapChain.hpp>
-
+#include <Texture.hpp>
+#include <iostream>
 #include <stdexcept>
-
 
 namespace vkr {
 
@@ -14,35 +13,73 @@ void Texture::Builder::loadImage(const std::string& filepath) {
     }
 }
 
+void Texture::Builder::loadCubemap(const std::string& filepath) {
+    std::array<std::string, 6> facePathStrings{{"posx.jpg", "negx.jpg", "posy.jpg", "negy.jpg", "posz.jpg", "negz.jpg"}};
+    for (int i = 0; i < 6; i++) {
+        cubemapPixels[i] = stbi_load((filepath + facePathStrings[i]).c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+
+        if (!cubemapPixels[i]) {
+            throw std::runtime_error("failed to load texture image!");
+        }
+    }
+}
+
 Texture::Texture(Device& device, const Texture::Builder& builder) : device{device} {
-    VkDeviceSize imageSize = builder.texWidth * builder.texHeight * 4;
-    device.createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    uint32_t numPixels = builder.texWidth * builder.texHeight * 4;
+    VkDeviceSize bufferSize = builder.pixels ? numPixels : numPixels * 6;
+    device.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                         stagingBuffer, stagingBufferMemory);
 
     void* data;
-    vkMapMemory(device.device(), stagingBufferMemory, 0, imageSize, 0, &data);
-    memcpy(data, builder.pixels, static_cast<size_t>(imageSize));
+    vkMapMemory(device.device(), stagingBufferMemory, 0, bufferSize, 0, &data);
+    if (builder.pixels)
+        memcpy(data, builder.pixels, static_cast<size_t>(bufferSize));
+    else {
+        stbi_uc* imagesData = (stbi_uc*)malloc(bufferSize);
+        for (int i = 0; i < 6; i++) {
+            for (int j = 0; j < numPixels; j++) {
+                imagesData += numPixels * i + j;
+                *imagesData = builder.cubemapPixels[i][j];
+                imagesData -= numPixels * i + j;
+            }
+        }
+        memcpy(data, imagesData, static_cast<size_t>(bufferSize));
+        free(imagesData);
+    }
     vkUnmapMemory(device.device(), stagingBufferMemory);
 
-    stbi_image_free(builder.pixels);
+    bool isCubemap = false;
+    if (builder.pixels)
+        stbi_image_free(builder.pixels);
+    else {
+        for (int i = 0; i < 6; i++)
+            stbi_image_free(builder.cubemapPixels[i]);
 
-    createImage(builder, VK_FORMAT_R8G8B8A8_SRGB, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+        isCubemap = true;
+    }
+
+    createImage(builder, VK_FORMAT_R8G8B8A8_SRGB, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                textureImage, textureImageMemory, isCubemap);
 
     // could be improved executing asynchronously
-    device.transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    device.transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, isCubemap);
     descriptorInfo.imageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 
-    device.copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(builder.texWidth), static_cast<uint32_t>(builder.texHeight));
+    if (!isCubemap)
+        device.copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(builder.texWidth), static_cast<uint32_t>(builder.texHeight));
+    else
+        device.copyBufferToCubemap(stagingBuffer, textureImage, static_cast<uint32_t>(builder.texWidth), static_cast<uint32_t>(builder.texHeight), numPixels);
 
-    device.transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    device.transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, isCubemap);
     descriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     vkDestroyBuffer(device.device(), stagingBuffer, nullptr);
     vkFreeMemory(device.device(), stagingBufferMemory, nullptr);
 
-    createTextureImageView();
+    createTextureImageView(isCubemap);
     createTextureSampler();
 }
 
@@ -69,7 +106,9 @@ void Texture::destroy() {
     }
 }
 
-void Texture::createImage(const Builder& builder, VkFormat format, VkSampleCountFlagBits numSamples, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
+void Texture::createImage(const Builder& builder, VkFormat format, VkSampleCountFlagBits numSamples,
+                          VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image,
+                          VkDeviceMemory& imageMemory, bool isCubemap) {
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -77,14 +116,14 @@ void Texture::createImage(const Builder& builder, VkFormat format, VkSampleCount
     imageInfo.extent.height = builder.texHeight;
     imageInfo.extent.depth = 1;
     imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 1;
+    imageInfo.arrayLayers = isCubemap ? 6 : 1;
     imageInfo.format = format;
     imageInfo.samples = numSamples;
     imageInfo.tiling = tiling;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageInfo.usage = usage;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.flags = isCubemap ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
 
     if (vkCreateImage(device.device(), &imageInfo, nullptr, &image) != VK_SUCCESS) {
         throw std::runtime_error("failed to create image!");
@@ -112,8 +151,15 @@ std::unique_ptr<Texture> Texture::createTextureFromFile(Device& device, const st
     return std::make_unique<Texture>(device, builder);
 }
 
-void Texture::createTextureImageView() {
-    descriptorInfo.imageView = SwapChain::createImageView(device, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+std::unique_ptr<Texture> Texture::createCubemapFromFile(Device& device, const std::string& filepath) {
+    Builder builder{};
+    builder.loadCubemap(filepath);
+
+    return std::make_unique<Texture>(device, builder);
+}
+
+void Texture::createTextureImageView(bool isCubemap) {
+    descriptorInfo.imageView = SwapChain::createImageView(device, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, isCubemap);
 }
 
 void Texture::createTextureSampler() {

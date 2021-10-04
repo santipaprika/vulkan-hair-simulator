@@ -7,6 +7,7 @@
 #include <Device.hpp>
 
 // std headers
+#include <array>
 #include <cstring>
 #include <iostream>
 #include <set>
@@ -500,7 +501,7 @@ void Device::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
     vkFreeCommandBuffers(_device, _commandPool, 1, &commandBuffer);
 }
 
-void Device::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
+void Device::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, bool isCubemap) {
     VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
     VkImageMemoryBarrier barrier{};
@@ -514,7 +515,7 @@ void Device::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.layerCount = isCubemap ? 6 : 1;
 
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
@@ -546,7 +547,7 @@ void Device::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout
     endSingleTimeCommands(commandBuffer);
 }
 
-void Device::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+void Device::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize offset, uint32_t regionCount) {
     VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
     VkBufferCopy copyRegion{};
@@ -582,6 +583,34 @@ void Device::copyBufferToImage(
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1,
         &region);
+    endSingleTimeCommands(commandBuffer);
+}
+
+void Device::copyBufferToCubemap(
+    VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t faceSize, uint32_t layerCount) {
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+
+    std::array<VkBufferImageCopy, 6> regions{};
+
+    for (int face = 0; face < 6; face++) {
+        regions[face].bufferOffset = faceSize * face;
+        regions[face].bufferRowLength = 0;
+        regions[face].bufferImageHeight = 0;
+        regions[face].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        regions[face].imageSubresource.mipLevel = 0;
+        regions[face].imageSubresource.baseArrayLayer = face;
+        regions[face].imageSubresource.layerCount = layerCount;
+        regions[face].imageOffset = {0, 0, 0};
+        regions[face].imageExtent = {width, height, 1};
+    }
+
+    vkCmdCopyBufferToImage(
+        commandBuffer,
+        buffer,
+        image,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        6,
+        regions.data());
     endSingleTimeCommands(commandBuffer);
 }
 

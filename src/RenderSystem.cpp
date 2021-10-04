@@ -252,12 +252,7 @@ void RenderSystem::updateDescriptorSet(Entity& entity) {
     descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrites[1].descriptorCount = 1;
 
-    // if (entity.material && entity.material->hasAlbedo()) {
     descriptorWrites[1].pImageInfo = &entity.material->getAlbedo()->getDescriptorInfo();
-    // } else {
-    //     VkDescriptorImageInfo blankTex { }
-    //     descriptorWrites[1].pImageInfo = ;
-    // }
 
     // Binding 2: Lights
 

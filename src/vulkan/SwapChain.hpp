@@ -48,7 +48,7 @@ class SwapChain {
 
     VkResult acquireNextImage(uint32_t *imageIndex);
     VkResult submitCommandBuffers(const std::vector<VkCommandBuffer> &buffers, uint32_t *imageIndex);
-    static VkImageView createImageView(Device &device, VkImage image, VkFormat format, VkImageAspectFlagBits aspectMask);
+    static VkImageView createImageView(Device &device, VkImage image, VkFormat format, VkImageAspectFlagBits aspectMask, bool isCubemap = false);
 
     bool compareSwapFormats(const SwapChain &swapChain) const {
         return swapChain.swapChainDepthFormat == swapChainDepthFormat &&

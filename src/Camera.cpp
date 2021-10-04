@@ -93,11 +93,11 @@ void Camera::update(TransformComponent viewerObjectTransform, float aspect) {
 
 void Camera::loadSkybox(Device& device) {
     std::string models_path(MODELS_PATH);
-    skybox.mesh = Mesh::createModelFromFile(device, (models_path + "/sphere.obj").c_str());
+    skybox.mesh = Mesh::createModelFromFile(device, (models_path + "/cube.obj").c_str());
 
     std::string textures_path(TEXTURES_PATH);
-    std::shared_ptr<Texture> texture = Texture::createTextureFromFile(device, (textures_path + "/test.jpg"));
-    skybox.material = std::make_shared<Material>(texture);
+    std::shared_ptr<Texture> skyboxCubemap = Texture::createCubemapFromFile(device, (textures_path + "/cubemaps/Maskonaive/"));
+    skybox.material = std::make_shared<Material>(skyboxCubemap);
 
     skyboxEnabled = true;
 }

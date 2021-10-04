@@ -70,10 +70,12 @@ class Device {
         VkDeviceMemory &bufferMemory);
     VkCommandBuffer beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, bool isCubemap = false);
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize offset = 0, uint32_t regionCount = 1);
     void copyBufferToImage(
         VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount = 1);
+    void copyBufferToCubemap(
+        VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t faceSize, uint32_t layerCount = 1);
 
     void createImageWithInfo(
         const VkImageCreateInfo &imageInfo,

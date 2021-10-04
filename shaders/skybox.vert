@@ -16,9 +16,15 @@ layout (binding = 0) uniform UniformBufferObject {
     vec3 camPos;
 } ubo;
 
+layout (location = 3) out vec3 UVW;
+
 void main() {
     vec4 positionWS = ubo.model * vec4(position, 1.0);
     vec4 pos = ubo.projectionView * positionWS;
+    
+    UVW = position;
+    // Convert cubemap coordinates into Vulkan coordinate space
+	UVW.xy *= -1.0;
 
     // z = w to fake furthest depth
     gl_Position = vec4(pos.xy, pos.w-0.00001, pos.w);
