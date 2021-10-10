@@ -1,5 +1,7 @@
 #version 450
 
+#define PI 3.1415926538
+
 layout (location = 0) in vec3 fragColor;
 layout (location = 1) in vec3 directionWS;
 layout (location = 2) in vec3 positionWS;
@@ -23,20 +25,15 @@ const vec3 DIRECTION_TO_LIGHT = normalize(vec3(3.0, -3.0, -1.0));
 vec3 AMBIENT = vec3(0.1);
 
 
-
-vec4 getAmbientAndDiffuse(vec4 lightColor0, vec4 diffuseColor, vec3 N, vec3 L)
+vec4 getAmbientAndDiffuse(vec4 lightColor0, vec4 diffuseColor, float angleLT)
 {
-    return (lightColor0 * diffuseColor * clamp(dot(N, L),0.0,1.0) + vec4(AMBIENT,1.0));
+    return (lightColor0 * diffuseColor * sin(angleLT) + vec4(AMBIENT,1.0));
 }
 
-vec4 getSpecular(vec4 lightColor0, vec4 specularColor, vec3 N, vec3 T, vec3 V, vec3 L, float specPower, float specScale)
+vec4 getSpecular(vec4 lightColor0, vec4 specularColor, float angleLT, float angleVT, float specPower)
 {
-    vec4 specular = vec4(0.0, 0.0, 0.0, 0.0);
-    vec3 H = normalize(V + L);
-    float HdotT = clamp(dot(T, H),0.0,1.0);
-    float sinTH = sqrt(1 - HdotT * HdotT);
-
-    return specularColor * clamp(pow(sinTH, specPower),0.0,1.0) * specScale;
+    float angleLTComp = PI - angleLT;
+    return specularColor * pow(abs(cos(angleLTComp - angleVT)), specPower) * specularColor;
 }
 
 void main() {
@@ -44,11 +41,16 @@ void main() {
     vec3 L = DIRECTION_TO_LIGHT;
     vec3 V = normalize(ubo.camPos - positionWS);
     vec3 T = normalize(directionWS);
-    vec3 VTPlaneNormal = normalize(cross(V, T));
-    vec3 N = normalize(cross(T, VTPlaneNormal));
+    float angleLT = acos(dot(L,T));
+    float angleVT = acos(dot(V,T));
 
-    vec4 diffuse = getAmbientAndDiffuse(vec4(1.0), vec4(fragColor,1.0), N, L);
-    vec4 specular = getSpecular(vec4(1.0), vec4(1.0), N, T, V, L, 0.1, 0.1);
+    vec4 diffuseColor = vec4(fragColor, 1.0);
+    vec4 specularColor = vec4(1.0);
+    vec4 lightColor = vec4(1.0);
+    vec4 diffuse = getAmbientAndDiffuse(lightColor, diffuseColor, angleLT);
+    vec4 specular = getSpecular(lightColor, specularColor, angleLT, angleVT, 3);
 
-    outColor = diffuse + specular;
+    float kd = 0.8;
+    float ks = 0.2;
+    outColor = kd * diffuse + ks * specular;
 }
