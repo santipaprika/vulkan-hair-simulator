@@ -17,28 +17,32 @@ void Scene::initialize() {
 
 void Scene::loadEntities() {
     std::string textures_path(TEXTURES_PATH);
-    std::shared_ptr<Texture> texture = Texture::createTextureFromFile(device, (textures_path + "/test.jpg"));
+    std::shared_ptr<Texture> texture = Texture::createTextureFromFile(device, (textures_path + "/head.png"));
     std::shared_ptr<Material> material = std::make_shared<Material>(texture);
+
+    std::shared_ptr<Texture> blankTexture = Texture::createTextureFromFile(device, (textures_path + "/blank.jpg"));
+    blankMaterial = std::make_shared<Material>(blankTexture);
 
     std::string models_path(MODELS_PATH);
 
     // Mesh Entities
     std::shared_ptr<Mesh> mesh =
-        Mesh::createModelFromFile(device, (models_path + "/flat_vase.obj").c_str());
-    auto flatVase = Entity::createEntity();
-    flatVase.mesh = mesh;
-    flatVase.material = material;
-    flatVase.transform.translation = {-.5f, .5f, 2.5f};
-    flatVase.transform.scale = {1.5f, 1.5f, 1.5f};
-    entities.push_back(std::move(flatVase));
+        Mesh::createModelFromFile(device, (models_path + "/head.obj").c_str());
+    auto head = Entity::createEntity();
+    head.mesh = mesh;
+    head.material = material;
+    head.transform.translation = {0.f, 2.2f, 2.5f};
+    head.transform.scale = {3.1f, 3.1f, 3.1f};
+    head.transform.rotation = {0.f, PI, 0.f};
+    entities.push_back(std::move(head));
 
-    mesh = Mesh::createModelFromFile(device, (models_path + "/smooth_vase.obj").c_str());
-    auto smoothVase = Entity::createEntity();
-    smoothVase.mesh = mesh;
-    smoothVase.material = material;
-    smoothVase.transform.translation = {.5f, .5f, 2.5f};
-    smoothVase.transform.scale = {1.5f, 1.5f, 1.5f};
-    entities.push_back(std::move(smoothVase));
+    // mesh = Mesh::createModelFromFile(device, (models_path + "/smooth_vase.obj").c_str());
+    // auto smoothVase = Entity::createEntity();
+    // smoothVase.mesh = mesh;
+    // smoothVase.material = material;
+    // smoothVase.transform.translation = {.5f, .5f, 2.5f};
+    // smoothVase.transform.scale = {1.5f, 1.5f, 1.5f};
+    // entities.push_back(std::move(smoothVase));
 
     // Hair Entities
     auto hairEntity = Entity::createEntity();

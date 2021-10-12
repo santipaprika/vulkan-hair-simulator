@@ -5,10 +5,12 @@
 */
 
 #include <Camera.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 // std
 #include <cassert>
 #include <limits>
+#include <iostream>
 
 namespace vkr {
 
@@ -65,8 +67,8 @@ void Camera::setViewYXZ(glm::vec3 position, glm::vec3 rotation) {
     const float s2 = glm::sin(rotation.x);
     const float c1 = glm::cos(rotation.y);
     const float s1 = glm::sin(rotation.y);
-    const glm::vec3 u{(c1 * c3 + s1 * s2 * s3), (c2 * s3), (c1 * s2 * s3 - c3 * s1)};
-    const glm::vec3 v{(c3 * s1 * s2 - c1 * s3), (c2 * c3), (c1 * c3 * s2 + s1 * s3)};
+    const glm::vec3 u{-(c1 * c3 + s1 * s2 * s3), -(c2 * s3), (c3 * s1 - c1 * s2 * s3)};
+    const glm::vec3 v{(c1 * s3 - c3 * s1 * s2), -(c2 * c3), -(c1 * c3 * s2 + s1 * s3)};
     const glm::vec3 w{(c2 * s1), (-s2), (c1 * c2)};
     viewMatrix = glm::mat4{1.f};
     viewMatrix[0][0] = u.x;
@@ -96,7 +98,7 @@ void Camera::loadSkybox(Device& device) {
     skybox.mesh = Mesh::createModelFromFile(device, (models_path + "/cube.obj").c_str());
 
     std::string textures_path(TEXTURES_PATH);
-    std::shared_ptr<Texture> skyboxCubemap = Texture::createCubemapFromFile(device, (textures_path + "/cubemaps/Maskonaive/"));
+    std::shared_ptr<Texture> skyboxCubemap = Texture::createCubemapFromFile(device, (textures_path + "/cubemaps/Bridge/"));
     skybox.material = std::make_shared<Material>(skyboxCubemap);
 
     skyboxEnabled = true;

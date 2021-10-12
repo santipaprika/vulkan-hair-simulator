@@ -25,5 +25,5 @@ layout(push_constant) uniform Push {
 
 void main() {
     vec3 lightIntensity = AMBIENT + vec3(max(dot(normalWS, DIRECTION_TO_LIGHT), 0));
-    outColor = texture(texSampler,fragTexCoord*3) * vec4(fragColor * lightIntensity, 1.0) + vec4(vec3(push.brightness), 0.0);
+    outColor = texture(texSampler,fragTexCoord) * vec4(fragColor * lightIntensity, 1.0) + vec4(vec3(push.brightness), 0.0);
 }

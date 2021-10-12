@@ -92,7 +92,7 @@ void RenderSystem::createPipeline(VkRenderPass renderPass, bool useMSAA) {
     hairPipelineConfig.inputAssemblyInfo.primitiveRestartEnable = VK_TRUE;
 
     PipelineConfigInfo skyboxPipelineConfig = pipelineConfig;
-    // skyboxPipelineConfig.rasterizationInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+    skyboxPipelineConfig.rasterizationInfo.cullMode = VK_CULL_MODE_BACK_BIT;
 
     ShaderPaths basicShaderPaths;
     basicShaderPaths.fragFilepath = "../shaders/basic.frag.spv";

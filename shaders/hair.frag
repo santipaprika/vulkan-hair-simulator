@@ -22,7 +22,7 @@ layout(push_constant) uniform Push {
 } push;
 
 const vec3 DIRECTION_TO_LIGHT = normalize(vec3(3.0, -3.0, -1.0));
-vec3 AMBIENT = vec3(0.1);
+vec3 AMBIENT = vec3(0.0);
 
 
 vec4 getAmbientAndDiffuse(vec4 lightColor0, vec4 diffuseColor, float angleLT)

@@ -22,5 +22,5 @@ void main() {
 
     normalWS = normalize(mat3(ubo.normalMatrix) * normal);
     fragColor = color;
-    fragTexCoord = uv;
+    fragTexCoord = vec2(uv.x, 1-uv.y);
 }

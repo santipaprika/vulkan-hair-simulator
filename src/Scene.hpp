@@ -32,6 +32,8 @@ class Scene {
     Camera mainCamera;
 
     Device& device;
+
+    std::shared_ptr<Material> blankMaterial;
 };
 
 }  // namespace vkr

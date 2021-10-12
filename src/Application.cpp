@@ -40,6 +40,7 @@ void Application::run() {
     ImGuiHelper imGuiHelper(*this);
 
     auto viewerObject = Entity::createEntity();
+    viewerObject.transform.translation = {0.f, 3.f, -2.f};
     InputController cameraController{};
 
     bool useMSAA = true;
